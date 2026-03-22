@@ -16,8 +16,9 @@ export function buildServer() {
     logger: false,
   })
 
+  const allowedOrigin = process.env.ALLOWED_ORIGIN
   void app.register(cors, {
-    origin: true,
+    origin: allowedOrigin ?? true,
     credentials: true,
   })
 
