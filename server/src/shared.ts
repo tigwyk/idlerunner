@@ -8,4 +8,6 @@ export {
   oauthProviderSchema,
   queueRequestSchema,
   queueResponseSchema,
+  usernameSetupRequestSchema,
+  usernameSetupResponseSchema,
 } from '../../shared/src/index.js'

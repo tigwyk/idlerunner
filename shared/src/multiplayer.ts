@@ -39,11 +39,28 @@ export type PlayerProfile = z.infer<typeof playerProfileSchema>
 
 export const authProfileResponseSchema = z.object({
   authenticated: z.boolean(),
+  needsSetup: z.boolean().default(false),
   availableProviders: z.array(oauthProviderSchema),
   profile: playerProfileSchema.nullable(),
   message: z.string(),
 })
 export type AuthProfileResponse = z.infer<typeof authProfileResponseSchema>
+
+export const usernameSetupRequestSchema = z.object({
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters.')
+    .max(20, 'Username must be 20 characters or fewer.')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username may only contain letters, numbers, and underscores.'),
+})
+export type UsernameSetupRequest = z.infer<typeof usernameSetupRequestSchema>
+
+export const usernameSetupResponseSchema = z.object({
+  ok: z.boolean(),
+  profile: playerProfileSchema.nullable(),
+  message: z.string(),
+})
+export type UsernameSetupResponse = z.infer<typeof usernameSetupResponseSchema>
 
 export const authLoginResponseSchema = z.object({
   provider: oauthProviderSchema,

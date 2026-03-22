@@ -4,11 +4,13 @@ import {
   backendHealthSchema,
   leaderboardResponseSchema,
   queueResponseSchema,
+  usernameSetupResponseSchema,
   type AuthLogoutResponse,
   type AuthProfileResponse,
   type BackendHealth,
   type LeaderboardResponse,
   type QueueResponse,
+  type UsernameSetupResponse,
 } from '@shared'
 import type { SectorType } from '@/types'
 import { supabase } from '@/lib/supabase'
@@ -68,6 +70,14 @@ export function fetchAuthProfile(): Promise<AuthProfileResponse> {
 
 export function logoutProfile(): Promise<AuthLogoutResponse> {
   return sendJson('/api/auth/logout', { method: 'POST' }, authLogoutResponseSchema)
+}
+
+export function callSetupUsername(username: string): Promise<UsernameSetupResponse> {
+  return sendJson(
+    '/api/auth/setup',
+    { method: 'POST', body: JSON.stringify({ username }) },
+    usernameSetupResponseSchema
+  )
 }
 
 export function fetchLeaderboard(scope: LeaderboardResponse['scope']): Promise<LeaderboardResponse> {

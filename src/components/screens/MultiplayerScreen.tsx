@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { OAuthProvider } from '@shared'
 import type { SectorType } from '@/types'
 import { useAuthStore } from '@/store/authStore'
@@ -10,7 +10,9 @@ export default function MultiplayerScreen() {
     profile,
     availableProviders,
     message: authMessage,
+    setupError,
     startLogin,
+    completeSetup,
     logout,
   } = useAuthStore()
   const {
@@ -69,40 +71,49 @@ export default function MultiplayerScreen() {
             </p>
           </div>
 
-          <div className="rounded border border-white/5 bg-surface-dark p-4 space-y-3">
-            <StatusRow label="Session" value={authStatus.toUpperCase()} />
-            <StatusRow label="Runner Profile" value={profile?.runnerName ?? 'Anonymous'} />
-            <StatusRow label="MMR" value={profile ? profile.mmr : 'Not ranked'} />
-            <StatusRow label="Region" value={profile?.region ?? 'Local only'} />
-          </div>
+          {authStatus === 'setup-required' ? (
+            <UsernameSetupCard
+              onSubmit={completeSetup}
+              error={setupError}
+            />
+          ) : (
+            <>
+              <div className="rounded border border-white/5 bg-surface-dark p-4 space-y-3">
+                <StatusRow label="Session" value={authStatus.toUpperCase()} />
+                <StatusRow label="Runner Profile" value={profile?.runnerName ?? 'Anonymous'} />
+                <StatusRow label="MMR" value={profile ? profile.mmr : 'Not ranked'} />
+                <StatusRow label="Region" value={profile?.region ?? 'Local only'} />
+              </div>
 
-          <div className="space-y-2">
-            <div className="text-xs font-label uppercase tracking-wide-custom text-text-muted">
-              OAuth Providers
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {availableProviders.length === 0 ? (
-                <span className="text-sm text-gray-600">Backend unavailable</span>
-              ) : (
-                <>
-                  {availableProviders.map((provider) => (
-                    <button
-                      key={provider}
-                      onClick={() => startLogin(provider)}
-                      className="btn btn-secondary"
-                    >
-                      {formatProvider(provider)}
-                    </button>
-                  ))}
-                  {authStatus === 'authenticated' && (
-                    <button onClick={() => logout()} className="btn btn-secondary">
-                      Logout
-                    </button>
+              <div className="space-y-2">
+                <div className="text-xs font-label uppercase tracking-wide-custom text-text-muted">
+                  OAuth Providers
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableProviders.length === 0 ? (
+                    <span className="text-sm text-gray-600">Backend unavailable</span>
+                  ) : (
+                    <>
+                      {availableProviders.map((provider) => (
+                        <button
+                          key={provider}
+                          onClick={() => startLogin(provider)}
+                          className="btn btn-secondary"
+                        >
+                          {formatProvider(provider)}
+                        </button>
+                      ))}
+                      {authStatus === 'authenticated' && (
+                        <button onClick={() => logout()} className="btn btn-secondary">
+                          Logout
+                        </button>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </div>
-          </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="card space-y-4">
@@ -200,6 +211,75 @@ export default function MultiplayerScreen() {
           <p className="text-sm text-gray-600">Connect the backend to preview encounter events.</p>
         )}
       </div>
+    </div>
+  )
+}
+
+function UsernameSetupCard({
+  onSubmit,
+  error,
+}: {
+  onSubmit: (username: string) => Promise<void>
+  error: string | null
+}) {
+  const [value, setValue] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const validationError =
+    value.length > 0 && value.length < 3
+      ? 'At least 3 characters required.'
+      : value.length > 20
+        ? 'Maximum 20 characters.'
+        : value.length > 0 && !/^[a-zA-Z0-9_]+$/.test(value)
+          ? 'Letters, numbers, and underscores only.'
+          : null
+
+  const canSubmit = value.length >= 3 && !validationError && !submitting
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canSubmit) return
+    setSubmitting(true)
+    await onSubmit(value)
+    setSubmitting(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded border border-accent-yellow/30 bg-surface-dark p-4 space-y-1">
+        <p className="text-sm font-semibold text-accent-yellow">Choose your runner name</p>
+        <p className="text-xs text-gray-500">
+          3–20 characters · letters, numbers, and underscores · shown on leaderboards
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="e.g. Atlas_7"
+            maxLength={20}
+            className="w-full rounded border border-white/10 bg-surface-dark px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-accent-yellow/50"
+            autoFocus
+          />
+          {validationError && (
+            <p className="mt-1 text-xs text-red-400">{validationError}</p>
+          )}
+          {error && !validationError && (
+            <p className="mt-1 text-xs text-red-400">{error}</p>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="btn btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {submitting ? 'Creating…' : 'Confirm name'}
+        </button>
+      </form>
     </div>
   )
 }

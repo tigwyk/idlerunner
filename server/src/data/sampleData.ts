@@ -14,9 +14,10 @@ export const sampleHealth: BackendHealth = {
 
 export const sampleProfile: AuthProfileResponse = {
   authenticated: false,
-  availableProviders: ['google', 'discord', 'github'],
+  needsSetup: false,
+  availableProviders: ['google', 'discord'],
   profile: null,
-  message: 'Multiplayer foundation is online. OAuth wiring is the next milestone.',
+  message: 'Multiplayer foundation is online.',
 }
 
 export const sampleLeaderboards: Record<'global' | 'regional' | 'friends', LeaderboardResponse> = {
