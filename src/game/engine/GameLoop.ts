@@ -8,7 +8,7 @@ import {
 } from '@/game/runner/RunnerUtils'
 import { generateLoot } from '@/game/loot/LootGenerator'
 import { GAME_CONFIG } from '@/game/config'
-import { ALL_SLOTS } from '@/types'
+import { ALL_SLOTS, SLOT_INFO } from '@/types'
 
 export function processTick(store: GameStore): void {
   const { activeRun, runner } = store
@@ -270,12 +270,45 @@ function generateEquipmentLoot(runnerLevel: number): import('@/types').Equipment
   const names = itemNames[slot] || ['Unknown']
   const name = names[Math.floor(Math.random() * names.length)]
   
+  const descriptions: Record<string, string> = {
+    'Pulse Rifle': 'Standard issue energy weapon. Reliable and accurate.',
+    'Plasma Carbine': 'Compact plasma weapon with moderate damage output.',
+    'Railgun': 'High-velocity projectile weapon. Excellent armor penetration.',
+    'Laser Rifle': 'Precision laser weapon with high accuracy.',
+    'Holdout Blaster': 'Small caliber backup weapon. Easy to conceal.',
+    'Combat Knife': 'Military-grade melee weapon. Silent and deadly.',
+    'Sawed-Off Shotgun': 'Modified shotgun. Devastating at close range.',
+    'Heavy Pistol': 'Large caliber sidearm. High damage, slow rate of fire.',
+    'EMP Grenade': 'Electromagnetic pulse device. Disables electronics.',
+    'Flashbang': 'Stun grenade. Disorients enemies briefly.',
+    'C4 Charge': 'Plastic explosive. Remote detonation capable.',
+    'Smoke Grenade': 'Tactical smoke screen. Provides visual cover.',
+    'Barrier Projector': 'Deploys a temporary energy barrier.',
+    'Deflector Array': 'Deflects incoming projectiles at angles.',
+    'Hard Light Shield': 'Solid light construct. Blocks most damage types.',
+    'Targeting Core': 'Enhances targeting systems. Improves accuracy.',
+    'Speed Core': 'Neural accelerator. Improves reaction time.',
+    'Stealth Core': 'Light-bending module. Reduces visibility.',
+    'Combat Core': 'Combat enhancement. Boosts damage output.',
+    'Shield Core': 'Shield amplifier. Increases shield capacity.',
+    'Hacking Core': 'Encryption breaker. Enhanced hacking capability.',
+    'Neural Enhancer': 'Brain implant. Improves cognitive function.',
+    'Targeting Optics': 'Optical implant. Enhanced visual targeting.',
+    'Threat Detection': 'Sensor suite. Detects nearby threats.',
+    'Reinforced Plating': 'Subdermal armor. Reduces physical damage.',
+    'Vital Systems': 'Organ reinforcement. Increases survivability.',
+    'Trauma Kit': 'Emergency medical implant. Auto-stabilizes wounds.',
+    'Speed Augment': 'Leg actuators. Enhanced movement speed.',
+    'Jump Jets': 'Micro-thrusters. Enables rapid repositioning.',
+    'Stabilizers': 'Gyroscopic stabilizers. Improves weapon handling.',
+  }
+  
   const item: import('@/types').Equipment = {
     id: `equip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} ${name}`,
     slot,
     rarity,
-    description: `A ${rarity} quality ${slot} item.`,
+    description: descriptions[name] || `A ${rarity} quality ${SLOT_INFO[slot]?.name || slot}.`,
   }
   
   if (slot === 'weapon1' || slot === 'weapon2') {
