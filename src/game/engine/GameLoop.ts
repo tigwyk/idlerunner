@@ -1,21 +1,20 @@
 import type { GameStore } from '@/store/gameStore'
-import { generateSector } from '@/game/sectors/SectorGenerator'
 import { 
   calculateDamage, 
   calculateAccuracy, 
-  calculateEvasion, 
+  calculateEvasion,
   calculateArmor,
   getSkillBonus 
 } from '@/game/runner/RunnerUtils'
 import { generateLoot } from '@/game/loot/LootGenerator'
 import { GAME_CONFIG } from '@/game/config'
+import { ALL_SLOTS } from '@/types'
 
 export function processTick(store: GameStore): void {
   const { activeRun, runner } = store
   if (!activeRun) return
 
-  const sector = generateSector(activeRun.sector)
-  const currentRoomData = sector.rooms[activeRun.currentRoom]
+  const currentRoomData = activeRun.rooms[activeRun.currentRoom]
 
   if (!currentRoomData) {
     store.completeRun(false)
@@ -71,7 +70,7 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
   if (enemy.health <= 0) {
     const loot = generateLoot(enemy.lootTable, runner.skills.scavenging.level)
     
-    store.updateActiveRun({
+    const equipmentUpdate: Partial<import('@/types').ActiveRun> = {
       enemiesDefeated: activeRun.enemiesDefeated + 1,
       resourcesCollected: mergeResources(activeRun.resourcesCollected, loot.resources),
       skillsUsed: {
@@ -79,7 +78,17 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
         combat: (activeRun.skillsUsed.combat || 0) + enemy.xpReward,
         scavenging: (activeRun.skillsUsed.scavenging || 0) + Math.floor(enemy.xpReward * 0.5),
       },
-    })
+    }
+    
+    if (Math.random() < 0.15) {
+      const equipment = generateEquipmentLoot(runner.level)
+      if (equipment) {
+        equipmentUpdate.equipmentCollected = [...activeRun.equipmentCollected, equipment]
+        store.addLog('loot', `Found ${equipment.name}!`)
+      }
+    }
+    
+    store.updateActiveRun(equipmentUpdate)
     
     store.addLog('combat', `Defeated ${enemy.name}`)
     advanceRoom(store)
@@ -108,14 +117,24 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
   if (enemy.health <= 0) {
     const loot = generateLoot(enemy.lootTable, runner.skills.scavenging.level)
     
-    store.updateActiveRun({
+    const equipmentUpdate: Partial<import('@/types').ActiveRun> = {
       enemiesDefeated: activeRun.enemiesDefeated + 1,
       resourcesCollected: mergeResources(activeRun.resourcesCollected, loot.resources),
       skillsUsed: {
         ...activeRun.skillsUsed,
         combat: (activeRun.skillsUsed.combat || 0) + enemy.xpReward,
       },
-    })
+    }
+    
+    if (Math.random() < 0.15) {
+      const equipment = generateEquipmentLoot(runner.level)
+      if (equipment) {
+        equipmentUpdate.equipmentCollected = [...activeRun.equipmentCollected, equipment]
+        store.addLog('loot', `Found ${equipment.name}!`)
+      }
+    }
+    
+    store.updateActiveRun(equipmentUpdate)
     
     store.addLog('combat', `Defeated ${enemy.name}`)
     advanceRoom(store)
@@ -215,10 +234,9 @@ function calculateExtractionChance(combatLevel: number, roomsCleared: number): n
 }
 
 function generateEquipmentLoot(runnerLevel: number): import('@/types').Equipment | null {
-  if (Math.random() > 0.3) return null
+  if (Math.random() > 0.6) return null
 
-  const slots: import('@/types').EquipmentSlot[] = ['primary', 'secondary', 'armor', 'utility']
-  const slot = slots[Math.floor(Math.random() * slots.length)]
+  const slot = ALL_SLOTS[Math.floor(Math.random() * ALL_SLOTS.length)]
   
   const rarities: import('@/types').ItemRarity[] = ['common', 'uncommon', 'rare']
   const rarityWeights = [60, 30, 10]
@@ -235,26 +253,57 @@ function generateEquipmentLoot(runnerLevel: number): import('@/types').Equipment
   }
 
   const rarity = rarities[rarityIndex]
-  const baseDamage = slot === 'primary' ? 8 + rarityIndex * 5 + runnerLevel : undefined
-  const baseArmor = slot === 'armor' ? 5 + rarityIndex * 3 + Math.floor(runnerLevel / 2) : undefined
-
-  const names: Record<import('@/types').EquipmentSlot, string[]> = {
-    primary: ['Pulse Rifle', 'Plasma Carbine', 'Railgun', 'Laser Pistol'],
-    secondary: ['Holdout Blaster', 'Combat Knife', 'EMP Grenade', 'Flashbang'],
-    armor: ['Flak Vest', 'Combat Suit', 'Powered Armor', 'Stealth Suit'],
-    utility: ['Medkit', 'Shield Generator', 'Scanner', 'Jammer'],
+  const baseValue = rarityIndex * 3 + runnerLevel
+  
+  const itemNames: Record<import('@/types').AllEquipmentSlot, string[]> = {
+    weapon1: ['Pulse Rifle', 'Plasma Carbine', 'Railgun', 'Laser Rifle'],
+    weapon2: ['Holdout Blaster', 'Combat Knife', 'Sawed-Off Shotgun', 'Heavy Pistol'],
+    equipment: ['EMP Grenade', 'Flashbang', 'C4 Charge', 'Smoke Grenade'],
+    shield: ['Barrier Projector', 'Deflector Array', 'Hard Light Shield'],
+    core1: ['Targeting Core', 'Speed Core', 'Stealth Core'],
+    core2: ['Combat Core', 'Shield Core', 'Hacking Core'],
+    implantHead: ['Neural Enhancer', 'Targeting Optics', 'Threat Detection'],
+    implantChest: ['Reinforced Plating', 'Vital Systems', 'Trauma Kit'],
+    implantLegs: ['Speed Augment', 'Jump Jets', 'Stabilizers'],
   }
 
-  const slotNames = names[slot]
-  const name = slotNames[Math.floor(Math.random() * slotNames.length)]
-
-  return {
+  const names = itemNames[slot] || ['Unknown']
+  const name = names[Math.floor(Math.random() * names.length)]
+  
+  const item: import('@/types').Equipment = {
     id: `equip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} ${name}`,
     slot,
     rarity,
-    damage: baseDamage,
-    armor: baseArmor,
     description: `A ${rarity} quality ${slot} item.`,
   }
+  
+  if (slot === 'weapon1' || slot === 'weapon2') {
+    item.damage = 8 + baseValue
+    item.accuracy = 5 + rarityIndex * 3
+  } else if (slot === 'equipment') {
+    item.damage = 3 + rarityIndex * 2
+    item.hackBonus = 5 + rarityIndex * 3
+  } else if (slot === 'shield') {
+    item.shield = 15 + baseValue
+    item.armor = 3 + rarityIndex * 2
+  } else if (slot === 'core1' || slot === 'core2') {
+    item.damage = 2 + rarityIndex
+    item.accuracy = 2 + rarityIndex
+    item.speed = 2 + rarityIndex
+  } else if (slot === 'implantHead') {
+    item.perception = 2 + rarityIndex
+    item.accuracy = 3 + rarityIndex * 2
+    item.hackBonus = 5 + rarityIndex * 2
+  } else if (slot === 'implantChest') {
+    item.healthBonus = 10 + baseValue
+    item.armor = 2 + rarityIndex
+    item.endurance = 1 + rarityIndex
+  } else if (slot === 'implantLegs') {
+    item.speed = 3 + rarityIndex * 2
+    item.evasion = 2 + rarityIndex
+    item.agility = 1 + rarityIndex
+  }
+
+  return item
 }

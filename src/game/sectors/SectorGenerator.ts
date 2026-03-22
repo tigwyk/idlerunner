@@ -117,10 +117,10 @@ const SECTOR_CONFIG: Record<SectorType, {
     roomCount: 5,
     maxExtractionTime: 120,
     nodeDistribution: {
-      resource: 40,
+      resource: 35,
       combat: 25,
-      loot: 20,
-      hazard: 10,
+      loot: 30,
+      hazard: 5,
       extraction: 5,
     },
   },
@@ -131,9 +131,9 @@ const SECTOR_CONFIG: Record<SectorType, {
     roomCount: 7,
     maxExtractionTime: 180,
     nodeDistribution: {
-      resource: 30,
-      combat: 35,
-      loot: 20,
+      resource: 25,
+      combat: 30,
+      loot: 30,
       hazard: 10,
       extraction: 5,
     },
@@ -146,8 +146,8 @@ const SECTOR_CONFIG: Record<SectorType, {
     maxExtractionTime: 240,
     nodeDistribution: {
       resource: 20,
-      combat: 30,
-      loot: 30,
+      combat: 25,
+      loot: 35,
       hazard: 15,
       extraction: 5,
     },
@@ -243,8 +243,8 @@ export function generateSector(sectorType: SectorType): Sector {
       id: `room-${i}`,
       name: `${name} ${i + 1}`,
       type: nodeType,
-      hasLoot: nodeType === 'loot' && Math.random() < 0.7,
-      isLocked: nodeType === 'loot' && Math.random() < 0.5,
+      hasLoot: nodeType === 'loot',
+      isLocked: nodeType === 'loot' && Math.random() < 0.3,
       isVisited: false,
     }
     
