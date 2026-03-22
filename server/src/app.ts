@@ -1,0 +1,43 @@
+import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import websocket from '@fastify/websocket'
+import { registerAuthRoutes } from './routes/auth.js'
+import { registerEncounterRoutes } from './routes/encounters.js'
+import { registerHealthRoutes } from './routes/health.js'
+import { registerLeaderboardRoutes } from './routes/leaderboards.js'
+import { registerMatchmakingRoutes } from './routes/matchmaking.js'
+import { registerProfileRoutes } from './routes/profiles.js'
+import { registerRunRoutes } from './routes/runs.js'
+import { registerSafetyRoutes } from './routes/safety.js'
+import { startMatchmaker } from './workers/matchmaker.js'
+
+export function buildServer() {
+  const app = Fastify({
+    logger: false,
+  })
+
+  const allowedOrigin = process.env.ALLOWED_ORIGIN
+  void app.register(cors, {
+    origin: allowedOrigin ?? true,
+    credentials: true,
+  })
+
+  // Register WebSocket support globally so all route plugins can use { websocket: true }
+  void app.register(websocket)
+
+  void app.register(registerHealthRoutes)
+  void app.register(registerAuthRoutes)
+  void app.register(registerProfileRoutes)
+  void app.register(registerLeaderboardRoutes)
+  void app.register(registerMatchmakingRoutes)
+  void app.register(registerSafetyRoutes)
+  void app.register(registerEncounterRoutes)
+  void app.register(registerRunRoutes)
+
+  // Start matchmaking worker after server is ready
+  app.addHook('onReady', () => {
+    startMatchmaker()
+  })
+
+  return app
+}

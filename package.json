@@ -5,20 +5,29 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "npm run build && wrangler dev",
+    "dev:server": "bun --hot server/src/index.ts",
+    "build": "tsc -p tsconfig.json && vite build && tsc -p tsconfig.server.json",
+    "build:client": "tsc -p tsconfig.json && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
+    "@supabase/supabase-js": "^2.99.3",
+    "fastify": "^5.8.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "zod": "^4.3.6",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.30.0",
     "@eslint/js": "^9.17.0",
+    "@types/node": "^25.5.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

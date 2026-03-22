@@ -1,7 +1,11 @@
 import { useGameStore } from '@/store/gameStore'
+import { useAuthStore } from '@/store/authStore'
+import { useMultiplayerStore } from '@/store/multiplayerStore'
 
 export default function Header() {
   const { runner, resources, activeRun } = useGameStore()
+  const authStatus = useAuthStore((state) => state.status)
+  const multiplayerStatus = useMultiplayerStore((state) => state.backendHealth?.status ?? 'offline')
 
   return (
     <header className="bg-surface-dark border-b border-white/5 px-4 py-3">
@@ -31,6 +35,20 @@ export default function Header() {
             <span className="text-text-muted">Status: </span>
             <span className={activeRun ? 'text-accent-yellow accent-glow' : 'text-accent-lime'}>
               {activeRun ? 'ACTIVE' : 'IDLE'}
+            </span>
+          </div>
+
+          <div className="text-xs font-label uppercase tracking-wide-custom">
+            <span className="text-text-muted">Account: </span>
+            <span className={authStatus === 'authenticated' ? 'text-accent-lime' : 'text-text-secondary'}>
+              {authStatus}
+            </span>
+          </div>
+
+          <div className="text-xs font-label uppercase tracking-wide-custom">
+            <span className="text-text-muted">MP: </span>
+            <span className={multiplayerStatus === 'online' ? 'text-accent-lime' : 'text-accent-yellow'}>
+              {multiplayerStatus}
             </span>
           </div>
         </div>

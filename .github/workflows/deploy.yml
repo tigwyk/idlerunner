@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Deployments are handled by platform-native GitHub integrations:
+#   Client → Cloudflare Pages (connected via CF dashboard, auto-deploys on push to main)
+#   Server → Railway (connected via Railway dashboard, auto-deploys on push to main)
+# This workflow only validates that the build and type-check pass.
+
+jobs:
+  build:
+    name: Build & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build client
+        run: npm run build:client
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_MULTIPLAYER_API_URL: ${{ secrets.VITE_MULTIPLAYER_API_URL }}
+
+      - name: Build server
+        run: npm run build:server
