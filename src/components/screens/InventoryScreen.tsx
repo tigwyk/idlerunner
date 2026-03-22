@@ -135,11 +135,7 @@ function InventoryItem({ item, equippedItem, onEquip, onDrop, isEquipped }: Inve
             flex-1 py-1.5 rounded text-xs font-medium transition-colors
             ${isEquipped 
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-              : hasEquippedItem
-                ? isUpgrade(comparison) 
-                  ? 'bg-success-600 hover:bg-success-500 text-white'
-                  : 'bg-danger-600 hover:bg-danger-500 text-white'
-                : 'bg-primary-600 hover:bg-primary-500 text-white'
+              : 'bg-primary-600 hover:bg-primary-500 text-white'
             }
           `}
         >
@@ -147,8 +143,8 @@ function InventoryItem({ item, equippedItem, onEquip, onDrop, isEquipped }: Inve
             ? 'Equipped' 
             : hasEquippedItem 
               ? isUpgrade(comparison)
-                ? 'Equip (Upgrade)'
-                : 'Equip (Downgrade)'
+                ? <>Equip <span className="text-success-300">↑</span></>
+                : <>Equip <span className="text-danger-300">↓</span></>
               : 'Equip'}
         </button>
         <button
