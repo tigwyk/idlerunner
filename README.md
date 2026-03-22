@@ -1,14 +1,14 @@
-# Marathon Idle
+# Tau Ceti Idle
 
-`Marathon Idle` is a browser-based idle extraction prototype built with React, TypeScript, Zustand, Tailwind CSS, and Vite.
+`Tau Ceti Idle` is a browser-based idle extraction game with optional co-op multiplayer, built with React, TypeScript, Zustand, Tailwind CSS, Vite, and a Fastify/Bun backend.
 
-The current build is already playable as a lightweight management loop: you deploy a runner into hostile sectors, let runs resolve on a real-time tick, collect resources and equipment, and grow the runner through levels and skill XP.
+**[Play live →](https://tau-ceti-idle.lee-0db.workers.dev/)**
+
+The game is playable right now — deploy a runner into hostile sectors, collect loot and equipment, and grow through levels and skills. Sign in with Google or Discord to unlock co-op mode and compete on the global leaderboard.
 
 ## Current game state
 
-The game is in an early but functional prototype state.
-
-Implemented right now:
+### Singleplayer (no sign-in required)
 
 - A 1-second game loop that advances active runs automatically.
 - Three deployable sectors with different room counts, danger levels, and unlock requirements.
@@ -18,17 +18,20 @@ Implemented right now:
 - Run logging, success/failure tracking, and persistent saves via local storage.
 - Offline progress simulation for active runs when the player returns later.
 
-Still missing or only partially implemented:
+### Multiplayer (sign in with Google or Discord)
 
-- Permanent meta-progression beyond levels, skills, and equipment.
-- A complete use of all equipment modifiers in combat calculations.
-- Fully implemented settings-driven UI behavior such as theme switching and compact mode.
-- Unique mechanics for hazard rooms and deeper sector-specific events.
+- OAuth login with username selection on first sign-in.
+- **Co-op mode** on the Deployment screen: opt in to share a run with another player.
+- Matchmaking worker pairs players in the same sector within ±300 MMR every 5 seconds.
+- Zone overlap detection — when both players reach the same room, a PvP encounter may trigger (20% chance).
+- Server-authoritative PvP resolution: MMR-weighted 60/40 odds, ±25 MMR change, +10 underdog bonus.
+- Encounter outcomes persisted to Supabase; MMR delta shown as an overlay during the run.
+- Live global and regional leaderboards ranked by MMR.
 
 ## Core loop
 
 1. Start from the overview or deployment screens.
-2. Deploy the runner into a sector.
+2. Deploy the runner into a sector (enable Co-op mode to queue for a shared run).
 3. Let the run resolve automatically as rooms are cleared on the global tick.
 4. Survive to extraction to bank resources, equipment, runner XP, and skill XP.
 5. Re-equip from inventory and push into harder sectors.
@@ -83,22 +86,32 @@ If the player leaves during an active run, the game can simulate capped offline 
 ## Screens in the current UI
 
 - `Overview` - high-level run status and account progress.
-- `Deployment` - choose a sector and launch runs.
+- `Deployment` - choose a sector, launch runs, and toggle Co-op mode.
 - `Runner` - inspect level, stats, equipment, and skills.
 - `Inventory` - equip or remove found gear.
 - `Skills` - review skill levels and progression.
 - `Log` - inspect recent events from runs.
+- `Multiplayer` - leaderboard, queue status, and account info.
 
 ## Tech stack
 
-- React 18
-- TypeScript
-- Zustand with persisted state
-- Tailwind CSS
-- Vite
-- Vitest
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, TypeScript, Zustand, Tailwind CSS, Vite |
+| Backend | Fastify 5, Bun runtime |
+| Auth / DB | Supabase (Google + Discord OAuth, PostgreSQL) |
+| Shared contracts | Zod v4 |
+| Hosting (client) | Cloudflare Workers (static assets) |
+| Hosting (server) | Railway (Railpack + Bun) |
+| CI | GitHub Actions (build + type-check on every push) |
 
 ## Local development
+
+Copy the example env file and fill in your Supabase project values:
+
+```bash
+cp .env.example .env.local
+```
 
 Install dependencies:
 
@@ -106,10 +119,16 @@ Install dependencies:
 npm install
 ```
 
-Start the dev server:
+Start the client dev server:
 
 ```bash
 npm run dev
+```
+
+Start the multiplayer backend (requires Bun):
+
+```bash
+npm run dev:server
 ```
 
 Create a production build:
@@ -120,7 +139,7 @@ npm run build
 
 ## Save data
 
-The prototype persists game state in browser local storage using Zustand persistence.
+Singleplayer state is persisted in browser local storage via Zustand persistence.
 
 Current storage keys:
 
@@ -132,13 +151,9 @@ If you need a clean reset during development, clear those keys in the browser.
 ## Project structure
 
 ```text
-src/
-  components/   UI shell, navigation, and screens
-  game/         game loop, offline sim, sector generation, runner and loot logic
-  store/        Zustand game and settings stores
-  types/        shared game types
+src/           React client (game UI, stores, engine)
+server/        Fastify multiplayer backend
+shared/        Shared Zod schemas and pure formulas (used by both)
+supabase/      DB migrations
 ```
 
-## Notes for the next iteration
-
-The prototype already has a solid idle-extraction foundation. The most valuable next steps are a real upgrade economy, better encounter variety, fuller use of equipment and settings systems, and more distinct sector mechanics.
