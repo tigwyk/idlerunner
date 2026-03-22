@@ -1,0 +1,132 @@
+import { z } from 'zod'
+
+export const oauthProviderSchema = z.enum(['google', 'discord', 'github'])
+export type OAuthProvider = z.infer<typeof oauthProviderSchema>
+
+export const multiplayerCapabilitySchema = z.enum([
+  'auth',
+  'profiles',
+  'queue',
+  'leaderboards',
+  'encounters',
+  'reports',
+  'blocks',
+])
+export type MultiplayerCapability = z.infer<typeof multiplayerCapabilitySchema>
+
+export const connectionStatusSchema = z.enum(['online', 'degraded', 'offline'])
+export type ConnectionStatus = z.infer<typeof connectionStatusSchema>
+
+export const backendHealthSchema = z.object({
+  service: z.literal('marathon-idle-multiplayer'),
+  status: connectionStatusSchema,
+  version: z.string(),
+  capabilities: z.array(multiplayerCapabilitySchema),
+  websocketUrl: z.string().url(),
+})
+export type BackendHealth = z.infer<typeof backendHealthSchema>
+
+export const playerProfileSchema = z.object({
+  id: z.string(),
+  runnerName: z.string(),
+  region: z.string(),
+  mmr: z.number().int().nonnegative(),
+  rankTier: z.string(),
+  careerRuns: z.number().int().nonnegative(),
+  careerWins: z.number().int().nonnegative(),
+})
+export type PlayerProfile = z.infer<typeof playerProfileSchema>
+
+export const authProfileResponseSchema = z.object({
+  authenticated: z.boolean(),
+  availableProviders: z.array(oauthProviderSchema),
+  profile: playerProfileSchema.nullable(),
+  message: z.string(),
+})
+export type AuthProfileResponse = z.infer<typeof authProfileResponseSchema>
+
+export const authLoginResponseSchema = z.object({
+  provider: oauthProviderSchema,
+  authorizationUrl: z.string().nullable(),
+  sessionId: z.string().optional(),
+  profile: playerProfileSchema.optional(),
+  message: z.string(),
+})
+export type AuthLoginResponse = z.infer<typeof authLoginResponseSchema>
+
+export const authLogoutResponseSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+})
+export type AuthLogoutResponse = z.infer<typeof authLogoutResponseSchema>
+
+export const leaderboardEntrySchema = z.object({
+  playerId: z.string(),
+  runnerName: z.string(),
+  mmr: z.number().int().nonnegative(),
+  tier: z.string(),
+  wins: z.number().int().nonnegative(),
+  encounters: z.number().int().nonnegative(),
+})
+export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>
+
+export const leaderboardResponseSchema = z.object({
+  scope: z.enum(['global', 'regional', 'friends']),
+  season: z.string(),
+  entries: z.array(leaderboardEntrySchema),
+})
+export type LeaderboardResponse = z.infer<typeof leaderboardResponseSchema>
+
+export const queueStatusSchema = z.enum(['idle', 'queued', 'matched'])
+export type QueueStatus = z.infer<typeof queueStatusSchema>
+
+export const queueRequestSchema = z.object({
+  sector: z.enum(['residential', 'industrial', 'research']),
+  roomProgress: z.number().int().nonnegative().default(0),
+})
+export type QueueRequest = z.infer<typeof queueRequestSchema>
+
+export const queueResponseSchema = z.object({
+  status: queueStatusSchema,
+  queueId: z.string().nullable().default(null),
+  sector: z.enum(['residential', 'industrial', 'research']).nullable().default(null),
+  position: z.number().int().nonnegative().nullable().default(null),
+  message: z.string(),
+})
+export type QueueResponse = z.infer<typeof queueResponseSchema>
+
+export const encounterPhaseSchema = z.enum([
+  'preparing',
+  'active',
+  'resolving',
+  'completed',
+])
+export type EncounterPhase = z.infer<typeof encounterPhaseSchema>
+
+export const encounterEventTypeSchema = z.enum([
+  'encounter.created',
+  'encounter.prep_started',
+  'encounter.state_updated',
+  'encounter.action_requested',
+  'encounter.action_resolved',
+  'encounter.player_disconnected',
+  'encounter.player_reconnected',
+  'encounter.finished',
+])
+export type EncounterEventType = z.infer<typeof encounterEventTypeSchema>
+
+export const encounterStateSchema = z.object({
+  encounterId: z.string(),
+  phase: encounterPhaseSchema,
+  opponentName: z.string(),
+  lootAtStake: z.number().int().nonnegative(),
+  timerSeconds: z.number().int().nonnegative(),
+})
+export type EncounterState = z.infer<typeof encounterStateSchema>
+
+export const encounterEventSchema = z.object({
+  type: encounterEventTypeSchema,
+  encounter: encounterStateSchema,
+  message: z.string(),
+})
+export type EncounterEvent = z.infer<typeof encounterEventSchema>

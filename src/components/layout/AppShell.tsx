@@ -4,23 +4,30 @@ import Header from './Header'
 import Navigation from './Navigation'
 import OverviewScreen from '@/components/screens/OverviewScreen'
 import DeploymentScreen from '@/components/screens/DeploymentScreen'
+import MultiplayerScreen from '@/components/screens/MultiplayerScreen'
 import RunnerScreen from '@/components/screens/RunnerScreen'
 import InventoryScreen from '@/components/screens/InventoryScreen'
 import SkillsScreen from '@/components/screens/SkillsScreen'
 import LogScreen from '@/components/screens/LogScreen'
+import { useAuthStore } from '@/store/authStore'
+import { useMultiplayerStore } from '@/store/multiplayerStore'
 
 export default function AppShell() {
   const { currentScreen, tick, initializeGame } = useGameStore()
+  const initializeAuth = useAuthStore((state) => state.initializeAuth)
+  const initializeMultiplayer = useMultiplayerStore((state) => state.initializeMultiplayer)
 
   useEffect(() => {
     initializeGame()
+    void initializeAuth()
+    void initializeMultiplayer()
     
     const interval = setInterval(() => {
       tick()
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [tick, initializeGame])
+  }, [tick, initializeGame, initializeAuth, initializeMultiplayer])
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -28,6 +35,8 @@ export default function AppShell() {
         return <OverviewScreen />
       case 'deployment':
         return <DeploymentScreen />
+      case 'multiplayer':
+        return <MultiplayerScreen />
       case 'runner':
         return <RunnerScreen />
       case 'inventory':
