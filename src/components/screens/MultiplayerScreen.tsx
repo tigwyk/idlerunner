@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { OAuthProvider } from '@shared'
 import type { SectorType } from '@/types'
 import { useAuthStore } from '@/store/authStore'
@@ -18,21 +18,13 @@ export default function MultiplayerScreen() {
   const {
     backendHealth,
     leaderboard,
-    encounterPreview,
     queueState,
     status,
     message,
     refreshLeaderboard,
-    connectEncounterPreview,
     joinQueue,
     leaveQueue,
   } = useMultiplayerStore()
-
-  useEffect(() => {
-    if (!encounterPreview) {
-      connectEncounterPreview()
-    }
-  }, [connectEncounterPreview, encounterPreview])
 
   return (
     <div className="space-y-6">
@@ -154,10 +146,9 @@ export default function MultiplayerScreen() {
       <div className="card space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-gray-200">Queue Preview</h3>
+            <h3 className="text-base font-semibold text-gray-200">Queue Status</h3>
             <p className="text-sm text-gray-500 mt-1">
-              This is the first end-to-end matchmaking slice: authenticated users can join and leave a simulated
-              queue while the worker and pairing logic are still pending.
+              Use the Deployment screen to queue for a multiplayer run. Authenticated runners within ±300 MMR and the same sector will be matched.
             </p>
           </div>
           <div className="text-xs font-label uppercase tracking-wide-custom text-accent-yellow">
@@ -168,7 +159,10 @@ export default function MultiplayerScreen() {
         <div className="rounded border border-white/5 bg-surface-dark p-4 space-y-3">
           <StatusRow label="Queue ID" value={queueState?.queueId ?? 'Not queued'} />
           <StatusRow label="Sector" value={queueState?.sector ?? 'N/A'} />
-          <StatusRow label="Position" value={queueState?.position ?? 'N/A'} />
+          <StatusRow label="Status" value={queueState?.status ?? 'idle'} />
+          {queueState?.status === 'matched' && (
+            <StatusRow label="Run Session" value={queueState.runSessionId ?? 'N/A'} />
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -190,26 +184,7 @@ export default function MultiplayerScreen() {
             Leave Queue
           </button>
         </div>
-      </div>
-
-      <div className="card space-y-4">
-        <div>
-          <h3 className="text-base font-semibold text-gray-200">Encounter Transport Preview</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            The WebSocket handshake is live so the future encounter state machine has a stable contract to build on.
-          </p>
-        </div>
-
-        {encounterPreview ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-            <InfoCard label="Encounter" value={encounterPreview.encounter.encounterId} />
-            <InfoCard label="Phase" value={encounterPreview.encounter.phase} />
-            <InfoCard label="Opponent" value={encounterPreview.encounter.opponentName} />
-            <InfoCard label="Loot At Stake" value={encounterPreview.encounter.lootAtStake} />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-600">Connect the backend to preview encounter events.</p>
-        )}
+        <p className="text-xs text-gray-600">Tip: Enable <span className="text-gray-400">Co-op mode</span> on the Deployment screen to queue automatically when you deploy.</p>
       </div>
     </div>
   )

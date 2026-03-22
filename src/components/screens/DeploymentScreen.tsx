@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useGameStore } from '@/store/gameStore'
+import { useAuthStore } from '@/store/authStore'
+import { useMultiplayerStore } from '@/store/multiplayerStore'
 import { SECTOR_NAMES, SECTOR_DESCRIPTIONS } from '@/game/config'
 import { getSectorConfig } from '@/game/sectors/SectorGenerator'
 import { STARTER_KITS, getKitById } from '@/game/data/kits'
@@ -7,8 +9,33 @@ import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type Sl
 
 export default function DeploymentScreen() {
   const { runner, activeRun, startRun } = useGameStore()
+  const { status: authStatus, profile } = useAuthStore()
+  const { queueState, joinQueue, leaveQueue, startMultiplayerRun } = useMultiplayerStore()
   const [showKits, setShowKits] = useState(false)
   const [selectedKitId, setSelectedKitId] = useState<string>(STARTER_KITS[0].id)
+  const [multiplayerMode, setMultiplayerMode] = useState(false)
+
+  const isAuthenticated = authStatus === 'authenticated'
+  const isQueued = queueState?.status === 'queued'
+  const isMatched = queueState?.status === 'matched'
+
+  // When matched, auto-start the run and join the session
+  useEffect(() => {
+    if (!isMatched || !queueState?.runSessionId || !queueState.sector || !profile) return
+
+    const sector = queueState.sector
+    const sessionId = queueState.runSessionId
+    const userId = profile.id
+
+    // Start the local run then join the server session
+    if (showKits) {
+      startRun(sector, 'kit', selectedKitId)
+    } else {
+      startRun(sector, 'custom')
+    }
+
+    startMultiplayerRun(sessionId, userId).catch(console.error)
+  }, [isMatched]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (activeRun) {
     return (
@@ -23,11 +50,20 @@ export default function DeploymentScreen() {
   const hasCustomGear = Object.values(runner.equipment).some(e => e !== undefined)
 
   const handleDeploy = (sector: 'residential' | 'industrial' | 'research') => {
+    if (multiplayerMode && isAuthenticated) {
+      // Queue for multiplayer — run starts automatically when matched
+      joinQueue(sector).catch(console.error)
+      return
+    }
     if (showKits) {
       startRun(sector, 'kit', selectedKitId)
     } else {
       startRun(sector, 'custom')
     }
+  }
+
+  const handleCancelQueue = () => {
+    leaveQueue().catch(console.error)
   }
 
   const selectedKit = showKits ? getKitById(selectedKitId) : null
@@ -61,6 +97,27 @@ export default function DeploymentScreen() {
         <h2 className="text-lg font-display text-accent-yellow mb-2 uppercase tracking-wider">Deployment</h2>
         <p className="text-sm text-text-muted">Equip your gear and deploy to extract resources and loot.</p>
       </div>
+
+      {/* Queued / Matched state banner */}
+      {(isQueued || isMatched) && (
+        <div className={`card border ${isMatched ? 'border-accent-lime/50' : 'border-accent-yellow/30'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-semibold ${isMatched ? 'text-accent-lime' : 'text-accent-yellow'}`}>
+                {isMatched ? '⚡ Match Found!' : '⏳ Searching for a runner...'}
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {isMatched ? 'Launching run session automatically...' : `Queued for ${queueState?.sector ?? 'a sector'}`}
+              </p>
+            </div>
+            {isQueued && (
+              <button onClick={handleCancelQueue} className="btn btn-secondary text-xs">
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
@@ -171,6 +228,37 @@ export default function DeploymentScreen() {
         </div>
 
         <div className="space-y-4">
+          {/* Multiplayer mode toggle */}
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="section-title">Run Mode</h3>
+                <p className="text-xs text-text-muted mt-1">
+                  {multiplayerMode
+                    ? 'You may encounter other runners in the same area.'
+                    : 'Standard extraction run. No other runners.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setMultiplayerMode((m) => !m)}
+                disabled={!isAuthenticated}
+                title={!isAuthenticated ? 'Sign in to enable multiplayer runs' : undefined}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  multiplayerMode ? 'bg-accent-lime' : 'bg-surface-elevated'
+                } ${!isAuthenticated ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    multiplayerMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {!isAuthenticated && (
+              <p className="text-xs text-text-muted mt-2">Sign in from the Multiplayer tab to enable co-op runs.</p>
+            )}
+          </div>
+
           <div className="card">
             <h3 className="section-title">Select Sector</h3>
             <div className="space-y-3">
@@ -180,6 +268,13 @@ export default function DeploymentScreen() {
                   (sector === 'industrial' && runner.level < 5) ||
                   (sector === 'research' && runner.level < 10)
                 const canDeploy = showKits || hasCustomGear
+                const isCurrentlyQueued = isQueued || isMatched
+
+                const deployLabel = () => {
+                  if (!canDeploy) return 'Equip Gear or Select Kit'
+                  if (multiplayerMode && isAuthenticated) return isCurrentlyQueued ? 'In Queue...' : 'Queue for Co-op'
+                  return showKits ? 'Deploy with Kit' : 'Deploy'
+                }
 
                 return (
                   <div
@@ -212,10 +307,10 @@ export default function DeploymentScreen() {
                     ) : (
                       <button
                         onClick={() => handleDeploy(sector)}
-                        disabled={!canDeploy}
-                        className={`btn w-full ${canDeploy ? (showKits ? 'btn-secondary' : 'btn-accent') : 'opacity-50 cursor-not-allowed bg-surface-dark text-text-muted'}`}
+                        disabled={!canDeploy || isCurrentlyQueued}
+                        className={`btn w-full ${canDeploy && !isCurrentlyQueued ? (showKits ? 'btn-secondary' : 'btn-accent') : 'opacity-50 cursor-not-allowed bg-surface-dark text-text-muted'}`}
                       >
-                        {showKits ? 'Deploy with Kit' : hasCustomGear ? 'Deploy' : 'Equip Gear or Select Kit'}
+                        {deployLabel()}
                       </button>
                     )}
                   </div>
@@ -231,6 +326,9 @@ export default function DeploymentScreen() {
               <p>• <span className="text-accent-lime">Starter kits</span> are a safe fallback. Lost on extraction but free to replace.</p>
               <p>• Combat is auto-resolved based on equipment and skills.</p>
               <p>• Reach extraction before the timer expires to bank your loot.</p>
+              {multiplayerMode && (
+                <p>• <span className="text-accent-lime">Co-op mode:</span> You may encounter another runner in the same zone. PvP is automatically resolved.</p>
+              )}
             </div>
           </div>
         </div>

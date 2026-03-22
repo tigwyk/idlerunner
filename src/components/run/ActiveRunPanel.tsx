@@ -1,8 +1,39 @@
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '@/store/gameStore'
+import { useMultiplayerStore } from '@/store/multiplayerStore'
+import { useAuthStore } from '@/store/authStore'
 import { SECTOR_NAMES } from '@/game/config'
+import type { RunEvent } from '@shared'
 
 export default function ActiveRunPanel() {
   const { activeRun, runner, completeRun } = useGameStore()
+  const { activeRunSession, pvpEvent, syncPosition, endMultiplayerRun, clearPvpEvent } = useMultiplayerStore()
+  const { profile, initializeAuth } = useAuthStore()
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Position sync — runs every 2s during a multiplayer run
+  useEffect(() => {
+    if (!activeRunSession || !activeRun) return
+
+    syncIntervalRef.current = setInterval(() => {
+      syncPosition(activeRunSession.sessionId, activeRun.currentRoom).catch(() => undefined)
+    }, 2000)
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current)
+        syncIntervalRef.current = null
+      }
+    }
+  }, [activeRunSession?.sessionId, activeRun?.sector]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When run ends, clean up the multiplayer session and refresh MMR
+  useEffect(() => {
+    if (!activeRun && activeRunSession) {
+      endMultiplayerRun()
+      initializeAuth().catch(() => undefined)
+    }
+  }, [activeRun]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeRun) return null
 
@@ -12,12 +43,29 @@ export default function ActiveRunPanel() {
 
   return (
     <div className="space-y-4">
+      {/* PvP event overlay */}
+      {pvpEvent && (
+        <PvpEventBanner
+          event={pvpEvent}
+          myUserId={profile?.id ?? ''}
+          onDismiss={clearPvpEvent}
+        />
+      )}
+
       <div className="card">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="font-semibold text-gray-200">{SECTOR_NAMES[activeRun.sector]}</h3>
+            <h3 className="font-semibold text-gray-200">
+              {SECTOR_NAMES[activeRun.sector]}
+              {activeRunSession && (
+                <span className="ml-2 text-xs text-accent-lime">● CO-OP</span>
+              )}
+            </h3>
             <p className="text-xs text-gray-500">
               Room {activeRun.currentRoom + 1} of {activeRun.rooms.length}
+              {activeRunSession?.opponent && (
+                <span className="ml-2 text-gray-600">· {activeRunSession.opponent.runnerName} is in the field</span>
+              )}
             </p>
           </div>
           <div className="text-right">
@@ -97,6 +145,59 @@ export default function ActiveRunPanel() {
       )}
     </div>
   )
+}
+
+function PvpEventBanner({
+  event,
+  myUserId,
+  onDismiss,
+}: {
+  event: RunEvent
+  myUserId: string
+  onDismiss: () => void
+}) {
+  if (event.type === 'pvp.encounter_started') {
+    return (
+      <div className="card border border-danger-500/50 bg-danger-500/10">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-danger-400">⚔ Runner Encountered!</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {event.opponent.runnerName} (MMR {event.opponent.mmr}) — resolving combat...
+            </p>
+            <p className="text-xs text-gray-600 mt-0.5">{event.lootAtStake} credits at stake</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (event.type === 'pvp.encounter_resolved') {
+    const { outcome } = event
+    const won = outcome.winnerId === myUserId
+    return (
+      <div
+        className={`card border ${won ? 'border-accent-lime/50 bg-accent-lime/5' : 'border-danger-500/30 bg-danger-500/5'}`}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={`text-sm font-semibold ${won ? 'text-accent-lime' : 'text-danger-400'}`}>
+              {won ? '✓ You won the encounter!' : '✗ You lost the encounter'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              MMR {won ? `+${outcome.mmrChange.winner}` : outcome.mmrChange.loser} ·{' '}
+              {won ? `+${outcome.lootTransferred} credits gained` : `${outcome.lootTransferred} credits lost`}
+            </p>
+          </div>
+          <button onClick={onDismiss} className="text-xs text-gray-600 hover:text-gray-400">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }
 
 function ProgressBar({ label, percent, color }: { label: string; percent: number; color: string }) {

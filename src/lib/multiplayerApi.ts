@@ -2,12 +2,14 @@ import {
   authLogoutResponseSchema,
   authProfileResponseSchema,
   backendHealthSchema,
+  joinRunResponseSchema,
   leaderboardResponseSchema,
   queueResponseSchema,
   usernameSetupResponseSchema,
   type AuthLogoutResponse,
   type AuthProfileResponse,
   type BackendHealth,
+  type JoinRunResponse,
   type LeaderboardResponse,
   type QueueResponse,
   type UsernameSetupResponse,
@@ -60,6 +62,10 @@ export function getMultiplayerApiBaseUrl() {
   return API_BASE_URL
 }
 
+export function getMultiplayerWsBaseUrl() {
+  return API_BASE_URL.replace(/^http/, 'ws')
+}
+
 export function fetchBackendHealth(): Promise<BackendHealth> {
   return getJson('/api/health', backendHealthSchema)
 }
@@ -95,6 +101,22 @@ export function joinQueue(sector: SectorType): Promise<QueueResponse> {
   )
 }
 
+export function pollQueueStatus(): Promise<QueueResponse> {
+  return getJson('/api/matchmaking/queue', queueResponseSchema)
+}
+
 export function leaveQueue(): Promise<QueueResponse> {
   return sendJson('/api/matchmaking/queue', { method: 'DELETE' }, queueResponseSchema)
+}
+
+export function joinRunSession(sessionId: string): Promise<JoinRunResponse> {
+  return sendJson(`/api/runs/${sessionId}/join`, { method: 'POST' }, joinRunResponseSchema)
+}
+
+export function syncRunPosition(sessionId: string, currentRoom: number): Promise<void> {
+  return sendJson(
+    `/api/runs/${sessionId}/position`,
+    { method: 'POST', body: JSON.stringify({ currentRoom }) },
+    { parse: () => undefined }
+  )
 }

@@ -108,6 +108,7 @@ export const queueResponseSchema = z.object({
   queueId: z.string().nullable().default(null),
   sector: z.enum(['residential', 'industrial', 'research']).nullable().default(null),
   position: z.number().int().nonnegative().nullable().default(null),
+  runSessionId: z.string().nullable().default(null),
   message: z.string(),
 })
 export type QueueResponse = z.infer<typeof queueResponseSchema>
@@ -147,3 +148,74 @@ export const encounterEventSchema = z.object({
   message: z.string(),
 })
 export type EncounterEvent = z.infer<typeof encounterEventSchema>
+
+// ─── Run Sessions ─────────────────────────────────────────────────────────────
+
+export const runOpponentSchema = z.object({
+  userId: z.string(),
+  runnerName: z.string(),
+  mmr: z.number().int().nonnegative(),
+})
+export type RunOpponent = z.infer<typeof runOpponentSchema>
+
+export const joinRunResponseSchema = z.object({
+  ok: z.boolean(),
+  sessionId: z.string(),
+  sector: z.enum(['residential', 'industrial', 'research']),
+  opponent: runOpponentSchema.nullable(),
+  message: z.string(),
+})
+export type JoinRunResponse = z.infer<typeof joinRunResponseSchema>
+
+export const runPositionSyncRequestSchema = z.object({
+  currentRoom: z.number().int().nonnegative(),
+})
+export type RunPositionSyncRequest = z.infer<typeof runPositionSyncRequestSchema>
+
+export const pvpOpponentSchema = z.object({
+  userId: z.string(),
+  runnerName: z.string(),
+  mmr: z.number().int().nonnegative(),
+})
+export type PvpOpponent = z.infer<typeof pvpOpponentSchema>
+
+export const pvpOutcomeSchema = z.object({
+  winnerId: z.string(),
+  winnerName: z.string(),
+  loserId: z.string(),
+  loserName: z.string(),
+  mmrChange: z.object({ winner: z.number().int(), loser: z.number().int() }),
+  lootTransferred: z.number().int().nonnegative(),
+})
+export type PvpOutcome = z.infer<typeof pvpOutcomeSchema>
+
+export const runEventTypeSchema = z.enum([
+  'run.player_joined',
+  'run.position_update',
+  'pvp.encounter_started',
+  'pvp.encounter_resolved',
+])
+export type RunEventType = z.infer<typeof runEventTypeSchema>
+
+export const runEventSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('run.player_joined'),
+    userId: z.string(),
+    runnerName: z.string(),
+  }),
+  z.object({
+    type: z.literal('run.position_update'),
+    userId: z.string(),
+    currentRoom: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('pvp.encounter_started'),
+    opponent: pvpOpponentSchema,
+    lootAtStake: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('pvp.encounter_resolved'),
+    outcome: pvpOutcomeSchema,
+  }),
+])
+export type RunEvent = z.infer<typeof runEventSchema>
