@@ -7,27 +7,30 @@ import type {
   ActiveRun,
   LogEntry,
   SkillType,
-  EquipmentSlot,
-  GameScreen
+  GameScreen,
+  LoadoutType,
+  AllEquipmentSlot
 } from '@/types'
 import { 
   createInitialRunner, 
   calculateXpToLevel,
-  addSkillXp
+  addSkillXp,
+  createInitialEquipment
 } from '@/game/runner/RunnerUtils'
 import { GAME_CONFIG } from '@/game/config'
 import { generateSector } from '@/game/sectors/SectorGenerator'
 import { processTick } from '@/game/engine/GameLoop'
 import { calculateOfflineProgress } from '@/game/engine/OfflineCalculator'
+import { getKitEquipment } from '@/game/data/kits'
 
 export interface GameStore extends GameState {
   setCurrentScreen: (screen: GameScreen) => void
-  startRun: (sectorType: ActiveRun['sector']) => void
+  startRun: (sectorType: ActiveRun['sector'], loadoutType: LoadoutType, kitId?: string) => void
   updateResources: (resources: Partial<Record<ResourceType, number>>) => void
   addToInventory: (equipment: Equipment) => void
   removeFromInventory: (equipmentId: string) => void
   equipItem: (equipment: Equipment) => void
-  unequipItem: (slot: EquipmentSlot) => void
+  unequipItem: (slot: AllEquipmentSlot) => void
   addLog: (type: LogEntry['type'], message: string) => void
   tick: () => void
   initializeGame: () => void
@@ -65,31 +68,51 @@ export const useGameStore = create<GameStore>()(
 
       setCurrentScreen: (screen) => set({ currentScreen: screen }),
 
-      startRun: (sectorType) => {
+      startRun: (sectorType, loadoutType, kitId) => {
         const sector = generateSector(sectorType)
+        const state = get()
+        
+        let equipment: Partial<Record<AllEquipmentSlot, Equipment>> = {}
+        let customGearAtRisk: Equipment[] = []
+        
+        if (loadoutType === 'kit' && kitId) {
+          equipment = getKitEquipment(kitId)
+        } else {
+          equipment = { ...state.runner.equipment }
+          customGearAtRisk = Object.values(state.runner.equipment).filter((e): e is Equipment => e !== undefined)
+        }
+        
         const activeRun: ActiveRun = {
           sector: sectorType,
+          rooms: sector.rooms,
           currentRoom: 0,
           roomProgress: 0,
           extractionTimer: sector.maxExtractionTime,
+          maxExtractionTime: sector.maxExtractionTime,
           startTime: Date.now(),
           enemiesDefeated: 0,
           resourcesCollected: {},
           equipmentCollected: [],
           skillsUsed: {},
+          loadoutType,
+          kitId: kitId || null,
+          customGearAtRisk,
         }
         
-        set((state) => ({
+        set((s) => ({
           activeRun,
+          currentScreen: 'overview',
           runner: {
-            ...state.runner,
+            ...s.runner,
             status: 'active',
             currentSector: sectorType,
             currentRoom: 0,
+            equipment,
+            activeKitId: kitId || null,
           },
         }))
         
-        get().addLog('info', `Deployed to ${sector.name}`)
+        get().addLog('info', `Deployed to ${sector.name}${loadoutType === 'kit' ? ' with kit' : ' with custom loadout'}`)
       },
 
       updateResources: (resources) => set((state) => ({
@@ -136,14 +159,14 @@ export const useGameStore = create<GameStore>()(
         const equipped = state.runner.equipment[slot]
         if (!equipped) return state
 
+        const newEquipment = { ...state.runner.equipment }
+        delete newEquipment[slot]
+
         return {
           inventory: [...state.inventory, equipped],
           runner: {
             ...state.runner,
-            equipment: {
-              ...state.runner.equipment,
-              [slot]: null,
-            },
+            equipment: newEquipment,
           },
         }
       }),
@@ -241,7 +264,6 @@ export const useGameStore = create<GameStore>()(
             xp: newXp,
             level: newLevel,
             xpToNext,
-            maxHealth: 100 + newLevel * 10,
           },
         }
       }),
@@ -279,25 +301,41 @@ export const useGameStore = create<GameStore>()(
               status: 'idle',
               currentSector: null,
               currentRoom: 0,
+              health: s.runner.maxHealth,
+              activeKitId: null,
             },
             runsCompleted: s.runsCompleted + 1,
           }))
 
-          get().addLog('success', `Extraction successful! ${run.currentRoom} rooms cleared.`)
+          const lootMsg = run.loadoutType === 'kit' 
+            ? `Extraction successful! ${run.currentRoom} rooms cleared. Kit items kept.`
+            : `Extraction successful! ${run.currentRoom} rooms cleared.`
+          get().addLog('success', lootMsg)
         } else {
+          const lostGearIds = run.customGearAtRisk.map(e => e.id)
+          const newInventory = state.inventory.filter(
+            (item) => !lostGearIds.includes(item.id)
+          )
+          
           set((s) => ({
             activeRun: null,
+            inventory: newInventory,
             runner: {
               ...s.runner,
               status: 'idle',
               currentSector: null,
               currentRoom: 0,
-              health: Math.floor(s.runner.maxHealth * 0.25),
+              health: s.runner.maxHealth,
+              equipment: createInitialEquipment(),
+              activeKitId: null,
             },
             runsFailed: s.runsFailed + 1,
           }))
-
-          get().addLog('danger', 'Extraction failed. Runner escaped but lost all loot.')
+          
+          const failMsg = run.loadoutType === 'kit'
+            ? 'Extraction failed. Lost all loot and kit. Get a new kit from a vendor.'
+            : 'Extraction failed. Lost all loot and equipped gear.'
+          get().addLog('danger', failMsg)
         }
       },
 
@@ -309,7 +347,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'marathon-idle-save',
-      version: 1,
+      version: 2,
     }
   )
 )

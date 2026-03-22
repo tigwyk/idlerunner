@@ -1,4 +1,5 @@
-import type { Runner, RunnerStats, Skill, SkillType, EquipmentSlot, Equipment } from '@/types'
+import type { Runner, RunnerStats, Skill, SkillType, Equipment, AllEquipmentSlot } from '@/types'
+import { ALL_SLOTS } from '@/types'
 
 export function createInitialStats(): RunnerStats {
   return {
@@ -22,13 +23,8 @@ export function createInitialSkill(type: SkillType): Skill {
   }
 }
 
-export function createInitialEquipment(): Record<EquipmentSlot, Equipment | null> {
-  return {
-    primary: null,
-    secondary: null,
-    armor: null,
-    utility: null,
-  }
+export function createInitialEquipment(): Partial<Record<AllEquipmentSlot, Equipment>> {
+  return {}
 }
 
 export function createInitialRunner(): Runner {
@@ -50,6 +46,7 @@ export function createInitialRunner(): Runner {
       combat: createInitialSkill('combat'),
       hacking: createInitialSkill('hacking'),
     },
+    activeKitId: null,
   }
 }
 
@@ -95,7 +92,7 @@ export function calculateTotalStats(runner: Runner): RunnerStats {
   
   Object.values(runner.equipment).forEach((equip) => {
     if (!equip) return
-    // Equipment bonuses would be applied here
+    if (equip.speed) stats.agility += Math.floor(equip.speed / 2)
   })
 
   stats.agility += Math.floor((runner.level - 1) * 0.5)
@@ -105,8 +102,11 @@ export function calculateTotalStats(runner: Runner): RunnerStats {
 }
 
 export function calculateDamage(runner: Runner): number {
-  const primary = runner.equipment.primary
-  const baseDamage = primary?.damage || 5
+  const weapon1 = runner.equipment.weapon1
+  const weapon2 = runner.equipment.weapon2
+  const primaryDamage = weapon1?.damage || 5
+  const secondaryDamage = weapon2?.damage || 0
+  const baseDamage = primaryDamage + Math.floor(secondaryDamage * 0.5)
   const combatBonus = getSkillBonus(runner.skills.combat)
   const stats = calculateTotalStats(runner)
   
@@ -116,28 +116,86 @@ export function calculateDamage(runner: Runner): number {
 export function calculateAccuracy(runner: Runner): number {
   const stats = calculateTotalStats(runner)
   const combatBonus = runner.skills.combat.level * 2
-  return 75 + stats.perception + combatBonus
+  let acc = 75 + stats.perception + combatBonus
+  
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.accuracy) acc += item.accuracy
+  })
+  
+  return Math.min(99, acc)
 }
 
 export function calculateEvasion(runner: Runner): number {
   const stats = calculateTotalStats(runner)
-  return 5 + Math.floor(stats.agility * 0.5)
+  let evasion = 5 + Math.floor(stats.agility * 0.5)
+  
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.evasion) evasion += item.evasion
+  })
+  
+  return Math.min(75, evasion)
 }
 
 export function calculateArmor(runner: Runner): number {
-  const armor = runner.equipment.armor
-  const baseArmor = armor?.armor || 0
   const stats = calculateTotalStats(runner)
-  return baseArmor + Math.floor(stats.endurance * 0.3)
+  let armor = Math.floor(stats.endurance * 0.3)
+  
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.armor) armor += item.armor
+  })
+  
+  return armor
+}
+
+export function calculateShield(runner: Runner): number {
+  let shield = 0
+  const shieldItem = runner.equipment.shield
+  if (shieldItem?.shield) shield = shieldItem.shield
+  return shield
 }
 
 export function calculateHealth(runner: Runner): number {
   const stats = calculateTotalStats(runner)
-  return 100 + (runner.level * 10) + (stats.endurance * 2)
+  let health = 100 + (runner.level * 10) + (stats.endurance * 2)
+  
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.healthBonus) health += item.healthBonus
+  })
+  
+  return health
 }
 
 export function calculateHackChance(runner: Runner): number {
   const stats = calculateTotalStats(runner)
   const hackBonus = getSkillBonus(runner.skills.hacking)
-  return Math.min(95, 50 + stats.intelligence + (hackBonus - 1) * 50)
+  let chance = 50 + stats.intelligence + (hackBonus - 1) * 50
+  
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.hackBonus) chance += item.hackBonus
+  })
+  
+  return Math.min(95, chance)
+}
+
+export function calculateCritChance(runner: Runner): number {
+  let crit = 5
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.critChance) crit += item.critChance
+  })
+  return Math.min(50, crit)
+}
+
+export function calculateCritDamage(runner: Runner): number {
+  let critDmg = 1.5
+  ALL_SLOTS.forEach(slot => {
+    const item = runner.equipment[slot]
+    if (item?.critDamage) critDmg += item.critDamage
+  })
+  return critDmg
 }
