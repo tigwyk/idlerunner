@@ -1,14 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'Roboto Mono', SF Mono, Monaco, monospace;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0a0a0f;
+  color: #f4f4f5;
+  background-color: #060800;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -19,6 +21,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: linear-gradient(180deg, #060800 0%, #000000 100%);
 }
 
 #root {
@@ -28,11 +31,12 @@ body {
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 rounded font-medium transition-all duration-200 uppercase text-xs disabled:opacity-50 disabled:cursor-not-allowed;
+    letter-spacing: 0.4px;
   }
   
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-500 text-white;
+    @apply bg-primary text-surface-dark hover:bg-primary-400;
   }
   
   .btn-danger {
@@ -40,24 +44,71 @@ body {
   }
   
   .btn-secondary {
-    @apply bg-gray-700 hover:bg-gray-600 text-white;
+    @apply bg-surface-elevated border border-white/10 hover:bg-surface-raised text-text-secondary;
+  }
+  
+  .btn-accent {
+    @apply bg-accent-yellow text-surface-dark hover:bg-accent-lime font-bold;
   }
   
   .card {
-    @apply bg-gray-900 border border-gray-800 rounded-lg p-4;
+    @apply bg-surface-raised border border-white/5 rounded p-4;
+  }
+  
+  .card-elevated {
+    @apply bg-surface-elevated border border-white/10 rounded p-4;
   }
   
   .stat-bar {
-    @apply h-2 bg-gray-800 rounded-full overflow-hidden;
+    @apply h-2 bg-surface-dark rounded-full overflow-hidden border border-white/5;
   }
   
   .stat-bar-fill {
     @apply h-full transition-all duration-300;
   }
   
-  .rarity-common { @apply text-gray-400; }
-  .rarity-uncommon { @apply text-green-400; }
-  .rarity-rare { @apply text-blue-400; }
+  .rarity-common { @apply text-zinc-500; }
+  .rarity-uncommon { @apply text-accent-lime; }
+  .rarity-rare { @apply text-primary-400; }
   .rarity-epic { @apply text-purple-400; }
-  .rarity-legendary { @apply text-yellow-400; }
+  .rarity-legendary { @apply text-accent-yellow; }
+
+  .section-title {
+    @apply text-xs uppercase tracking-widest-custom text-text-muted mb-3;
+  }
+  
+  .label {
+    @apply text-2xs uppercase tracking-wide-custom text-text-muted;
+  }
+  
+  .value {
+    @apply text-text-primary font-mono;
+  }
+  
+  .accent-glow {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #060800;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #383f23;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a5430;
+}
+
+::selection {
+  background: rgba(186, 250, 1, 0.3);
+  color: #f4f4f5;
 }
