@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { authLogoutResponseSchema, authProfileResponseSchema } from '../shared.js'
 import { getAuthenticatedUser, isSupabaseConfigured, supabaseAdmin } from '../lib/supabase.js'
 
-const AVAILABLE_PROVIDERS = ['google', 'discord', 'github'] as const
+const AVAILABLE_PROVIDERS = ['google', 'discord'] as const
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   // GET /api/auth/profile

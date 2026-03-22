@@ -16,7 +16,7 @@ interface AuthStore {
 export const useAuthStore = create<AuthStore>((set) => ({
   status: 'idle',
   profile: null,
-  availableProviders: ['google', 'discord', 'github'],
+  availableProviders: ['google', 'discord'],
   message: null,
 
   initializeAuth: async () => {
@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     if (!isSupabaseConfigured()) {
       set({
         status: 'anonymous',
-        availableProviders: ['google', 'discord', 'github'],
+        availableProviders: ['google', 'discord'],
         message:
           'Copy .env.example to .env.local and add your Supabase project keys to enable OAuth.',
       })
@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       } else {
         set({
           status: 'anonymous',
-          availableProviders: ['google', 'discord', 'github'],
+          availableProviders: ['google', 'discord'],
           message: 'Sign in with an OAuth provider to access multiplayer features.',
         })
       }
