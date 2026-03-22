@@ -4,11 +4,11 @@ import type { GameScreen } from '@/types'
 const NAV_ITEMS: { id: GameScreen; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'deployment', label: 'Deploy' },
-  { id: 'multiplayer', label: 'Multiplayer' },
   { id: 'runner', label: 'Runner' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'skills', label: 'Skills' },
   { id: 'log', label: 'Log' },
+  { id: 'multiplayer', label: 'Multiplayer' },
 ]
 
 export default function Navigation() {
