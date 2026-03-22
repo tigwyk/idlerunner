@@ -537,7 +537,252 @@ Hacking + AI Sync → Advanced drone hacking
 
 ---
 
-## 23. MVP Implementation Status
+## 23. Multiplayer System
+
+### 23.1 Overview
+Optional multiplayer mode where registered players can encounter other runners during their extractions, creating emergent gameplay moments and competitive dynamics.
+
+### 23.2 Account System
+
+#### 23.2.1 Registration
+- **OAuth providers**: Google, Discord, GitHub
+- **Anonymous mode**: Single-player remains fully functional without account
+- **Account benefits**:
+  - Cross-device sync
+  - Ranked leaderboards
+  - Multiplayer encounters
+  - Persistent identity
+
+#### 23.2.2 Profile Data
+- Runner name and appearance
+- Season rank and MMR
+- Career statistics
+- Achievement badges
+- Syndicate affiliations
+
+### 23.3 Matchmaking System
+
+#### 23.3.1 Queue System
+```
+1. Player selects sector and deploys
+2. Server queues player for matchmaking
+3. System finds compatible runners (similar MMR, same sector)
+4. Encounter chance rolled at each room transition
+5. If match found, both runners enter same encounter
+```
+
+#### 23.3.2 Matchmaking Parameters
+| Parameter | Weight | Description |
+|-----------|--------|-------------|
+| MMR Range | High | ±100 points of player |
+| Sector | Required | Same sector type |
+| Room Progress | Medium | Similar room number |
+| Wait Time | Low | Expands range over time |
+
+#### 23.3.3 Encounter Frequency
+- Base encounter chance: 15% per room
+- Modified by sector danger level
+- Modified by player activity (more active = more encounters)
+- Maximum 1 encounter per run
+
+### 23.4 Encounter Types
+
+#### 23.4.1 Hostile Encounter (PvP)
+- Both runners want the same loot
+- Fight until one escapes or is downed
+- Winner takes loser's collected loot
+- Loser extracts with nothing (survives)
+
+#### 23.4.2 Cooperative Encounter
+- Both runners can choose to cooperate
+- Split loot 50/50
+- Bonus loot spawns for cooperators
+- Betrayal option (coop → attack mid-run)
+
+#### 23.4.3 Race Encounter
+- Both runners race to extraction
+- First to extract gets bonus loot
+- Both keep their collected items
+- No combat, pure speed
+
+### 23.5 Server Architecture
+
+#### 23.5.1 Client-Server Model
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Client A  │────▶│   Server    │◀────│   Client B  │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │   Database  │
+                    └─────────────┘
+```
+
+#### 23.5.2 Server Responsibilities
+- **Matchmaking**: Queue management, pairing logic
+- **Game State Verification**: Validate all client actions
+- **Combat Resolution**: Authoritative combat calculations
+- **Loot Distribution**: Server-side loot generation and assignment
+- **Anti-Cheat**: Detect impossible actions, modified clients
+- **Leaderboards**: Ranked MMR calculations
+
+#### 23.5.3 Data Protection
+- All combat rolls performed server-side
+- Equipment stats validated against database
+- Movement/progress rate-limited to legitimate values
+- Checksums on critical game state
+- Server-authoritative extraction results
+
+### 23.6 Anti-Cheat Measures
+
+#### 23.6.1 Client-Side Detection
+- Speed hack detection (action rate limits)
+- Memory manipulation detection
+- Modified client detection (hash verification)
+
+#### 23.6.2 Server-Side Validation
+- Statistical anomaly detection
+- Impossible action rejection
+- Cross-client verification in encounters
+- Replay analysis for suspicious patterns
+
+#### 23.6.3 Penalties
+| Violation | Penalty |
+|-----------|---------|
+| First offense | 7-day ranked ban |
+| Second offense | 30-day ranked ban |
+| Third offense | Permanent ranked ban |
+| Severe (speedhacks, etc.) | Permanent account ban |
+
+### 23.7 Ranked System
+
+#### 23.7.1 Tiers
+| Tier | MMR Range | Rewards |
+|------|-----------|---------|
+| Bronze | 0-999 | Basic season rewards |
+| Silver | 1000-1499 | +10% credit bonus |
+| Gold | 1500-1999 | +20% credit bonus, exclusive skin |
+| Platinum | 2000-2499 | +30% credit bonus, title |
+| Diamond | 2500-2999 | +40% credit bonus, legendary item |
+| Onyx | 3000+ | +50% credit bonus, unique cosmetics |
+
+#### 23.7.2 Season Structure
+- Season duration: 3 months
+- Soft reset at season start (-25% MMR)
+- Season-exclusive rewards
+- Season leaderboards (global, regional, friends)
+
+#### 23.7.3 MMR Calculation
+```
+Base MMR change: ±25
+Modifiers:
+  - Underdog bonus: +10 if opponent MMR higher
+  - Streak bonus: +5 per consecutive win (max +25)
+  - Early surrender: -15 (reduced loss)
+  - Betrayal: +5 bonus, flagged for revenge matching
+```
+
+### 23.8 Encounters in Detail
+
+#### 23.8.1 Encounter Flow
+```
+1. Server determines encounter trigger
+2. Both clients receive encounter notification
+3. 3-second preparation phase
+4. Encounter begins (type determined by sector + context)
+5. Real-time synced combat/navigation
+6. Encounter resolution
+7. Both clients receive results
+8. Continue/extract based on outcome
+```
+
+#### 23.8.2 Encounter UI Elements
+- Opponent health bar and name
+- Encounter timer
+- Action log (combat events)
+- Loot at stake indicator
+- Surrender/betrayal buttons
+
+#### 23.8.3 Connection Handling
+- Graceful disconnect: Run paused, can reconnect
+- Timeout (60s): Auto-surrender, minimal penalty
+- Malicious disconnect: Loss recorded, MMR penalty
+
+### 23.9 Technical Requirements
+
+#### 23.9.1 Server Stack
+- **API**: Node.js/Fastify or Go
+- **Database**: PostgreSQL (accounts, MMR) + Redis (queues, sessions)
+- **Real-time**: WebSocket for encounters
+- **Matchmaking**: Separate microservice
+- **CDN**: Static assets, replay storage
+
+#### 23.9.2 API Endpoints
+```
+POST   /auth/login          - OAuth callback
+GET    /auth/profile        - User profile
+POST   /matchmaking/queue   - Join queue
+DELETE /matchmaking/queue   - Leave queue
+WS     /encounter/:id       - Encounter real-time
+GET    /leaderboard/:type   - Leaderboards
+POST   /report              - Report player
+```
+
+#### 23.9.3 Scalability
+- Horizontal scaling for matchmaking servers
+- Regional matchmaking instances
+- Encounter servers scale on demand
+- Database read replicas for leaderboards
+
+### 23.10 Privacy & Safety
+
+#### 23.10.1 Data Collection
+- Minimum required for operation
+- No unnecessary personal data
+- Encrypted at rest and in transit
+- GDPR compliant
+
+#### 23.10.2 Player Safety
+- Block list (prevent encounters with specific players)
+- Report system for toxic behavior
+- Chat disabled by default (opt-in for encounters only)
+- No real names shown (runner names only)
+
+### 23.11 Implementation Phases
+
+#### Phase 1: Foundation (2-3 months)
+- [ ] OAuth integration
+- [ ] Account database schema
+- [ ] Basic API structure
+- [ ] Client-server communication layer
+
+#### Phase 2: Matchmaking (1-2 months)
+- [ ] Queue system
+- [ ] Matchmaking algorithm
+- [ ] MMR system
+- [ ] Leaderboards
+
+#### Phase 3: Encounters (2-3 months)
+- [ ] Real-time encounter infrastructure
+- [ ] Combat synchronization
+- [ ] Anti-cheat basics
+- [ ] Encounter UI
+
+#### Phase 4: Polish (1-2 months)
+- [ ] Advanced anti-cheat
+- [ ] Reconnection handling
+- [ ] Spectator mode (friends can watch)
+- [ ] Season system
+
+### 23.12 Opt-In Philosophy
+- **Single-player is complete**: All content accessible offline
+- **Multiplayer is bonus**: Extra rewards, social features
+- **No FOMO**: Season rewards are cosmetic or minor bonuses
+- **No pay-to-win**: Monetization does not affect PvP balance
+
+---
+
+## 24. MVP Implementation Status
 
 The following features have been implemented in the initial MVP:
 
@@ -550,11 +795,14 @@ The following features have been implemented in the initial MVP:
 - [x] Procedural sector generation
 - [x] Combat auto-resolution
 - [x] Resource collection system
-- [x] Equipment system (4 slots)
+- [x] Equipment system (9 slots: weapons, defense, core, implants)
+- [x] Faction starter kits
+- [x] Item comparison UI
 - [x] Extraction timer and risk mechanics
 - [x] Offline progress calculation
 - [x] Activity log
 - [x] Basic UI with navigation
+- [x] Tauceti.gg design tokens
 
 ### Pending (Future Phases)
 - [ ] Multiple runners
@@ -567,8 +815,9 @@ The following features have been implemented in the initial MVP:
 - [ ] Boss encounters
 - [ ] Meta progression/Prestige
 - [ ] Social features
+- [ ] Multiplayer system (accounts, matchmaking, encounters)
 
 ---
 
-*Document Version: 1.1*
+*Document Version: 1.2*
 *Last Updated: March 2026*
