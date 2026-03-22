@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --env-file=.env.local --watch --import tsx/esm server/src/index.ts",
+    "dev:server": "bun --hot server/src/index.ts",
     "build": "tsc -p tsconfig.json && vite build && tsc -p tsconfig.server.json",
     "build:client": "tsc -p tsconfig.json && vite build",
     "build:server": "tsc -p tsconfig.server.json",
@@ -36,7 +36,6 @@
     "globals": "^15.14.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.21.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5",
