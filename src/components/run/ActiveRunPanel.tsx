@@ -1,16 +1,14 @@
 import { useGameStore } from '@/store/gameStore'
 import { SECTOR_NAMES } from '@/game/config'
-import { generateSector } from '@/game/sectors/SectorGenerator'
 
 export default function ActiveRunPanel() {
   const { activeRun, runner, completeRun } = useGameStore()
 
   if (!activeRun) return null
 
-  const sector = generateSector(activeRun.sector)
-  const currentRoomData = sector.rooms[activeRun.currentRoom]
-  const extractionPercent = (activeRun.extractionTimer / sector.maxExtractionTime) * 100
-  const roomPercent = ((activeRun.currentRoom + 1) / sector.rooms.length) * 100
+  const currentRoomData = activeRun.rooms[activeRun.currentRoom]
+  const extractionPercent = (activeRun.extractionTimer / activeRun.maxExtractionTime) * 100
+  const roomPercent = ((activeRun.currentRoom + 1) / activeRun.rooms.length) * 100
 
   return (
     <div className="space-y-4">
@@ -19,7 +17,7 @@ export default function ActiveRunPanel() {
           <div>
             <h3 className="font-semibold text-gray-200">{SECTOR_NAMES[activeRun.sector]}</h3>
             <p className="text-xs text-gray-500">
-              Room {activeRun.currentRoom + 1} of {sector.rooms.length}
+              Room {activeRun.currentRoom + 1} of {activeRun.rooms.length}
             </p>
           </div>
           <div className="text-right">
@@ -58,7 +56,7 @@ export default function ActiveRunPanel() {
           <StatDisplay label="Enemies Defeated" value={activeRun.enemiesDefeated} />
           <StatDisplay label="Resources" value={countResources(activeRun.resourcesCollected)} />
           <StatDisplay label="Items" value={activeRun.equipmentCollected.length} />
-          <StatDisplay label="Time Elapsed" value={formatTime(sector.maxExtractionTime - activeRun.extractionTimer)} />
+          <StatDisplay label="Time Elapsed" value={formatTime(activeRun.maxExtractionTime - activeRun.extractionTimer)} />
         </div>
       </div>
 

@@ -4,30 +4,32 @@ export default function Header() {
   const { runner, resources, activeRun } = useGameStore()
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-4 py-3">
+    <header className="bg-surface-dark border-b border-white/5 px-4 py-3">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-primary-400">MARATHON IDLE</h1>
-          <span className="text-xs text-gray-500">v0.1.0</span>
+          <h1 className="text-lg font-display font-bold text-accent-yellow tracking-widest-custom uppercase">
+            MARATHON IDLE
+          </h1>
+          <span className="text-2xs text-text-muted font-mono">v0.1.0</span>
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="text-sm">
-            <span className="text-gray-500">Runner: </span>
-            <span className="text-white">{runner.name}</span>
-            <span className="text-gray-500 ml-2">Lv.{runner.level}</span>
+          <div className="text-xs font-caption">
+            <span className="text-text-muted">Runner: </span>
+            <span className="text-text-primary">{runner.name}</span>
+            <span className="text-accent-lime ml-2">LV.{runner.level}</span>
           </div>
           
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-xs font-mono">
             <ResourceDisplay type="credits" amount={resources.credits} />
             <ResourceDisplay type="metals" amount={resources.metals} />
             <ResourceDisplay type="electronics" amount={resources.electronics} />
             <ResourceDisplay type="data" amount={resources.data} />
           </div>
           
-          <div className="text-sm">
-            <span className="text-gray-500">Status: </span>
-            <span className={activeRun ? 'text-warning-400' : 'text-success-400'}>
+          <div className="text-xs font-label uppercase tracking-wide-custom">
+            <span className="text-text-muted">Status: </span>
+            <span className={activeRun ? 'text-accent-yellow accent-glow' : 'text-accent-lime'}>
               {activeRun ? 'ACTIVE' : 'IDLE'}
             </span>
           </div>
@@ -41,16 +43,16 @@ function ResourceDisplay({ type, amount }: { type: string; amount: number }) {
   return (
     <div className="flex items-center gap-1">
       <ResourceIcon type={type} />
-      <span className="text-gray-300">{formatNumber(amount)}</span>
+      <span className="text-text-secondary">{formatNumber(amount)}</span>
     </div>
   )
 }
 
 function ResourceIcon({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    credits: 'text-yellow-400',
-    metals: 'text-gray-400',
-    electronics: 'text-blue-400',
+    credits: 'text-accent-yellow',
+    metals: 'text-text-muted',
+    electronics: 'text-primary-400',
     data: 'text-purple-400',
   }
   
@@ -61,7 +63,7 @@ function ResourceIcon({ type }: { type: string }) {
     data: '◇',
   }
   
-  return <span className={colors[type] || 'text-gray-400'}>{icons[type] || '?'}</span>
+  return <span className={colors[type] || 'text-text-muted'}>{icons[type] || '?'}</span>
 }
 
 function formatNumber(num: number): string {

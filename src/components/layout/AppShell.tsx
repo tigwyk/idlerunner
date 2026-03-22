@@ -42,7 +42,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-surface text-text-primary flex flex-col">
       <Header />
       <Navigation />
       <main className="flex-1 p-4 max-w-6xl mx-auto w-full">

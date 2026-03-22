@@ -14,7 +14,7 @@ export default function Navigation() {
   const { currentScreen, setCurrentScreen, activeRun } = useGameStore()
 
   return (
-    <nav className="bg-gray-900 border-b border-gray-800">
+    <nav className="bg-surface-dark border-b border-white/5">
       <div className="max-w-6xl mx-auto flex">
         {NAV_ITEMS.map((item) => {
           const isActive = currentScreen === item.id
@@ -27,17 +27,17 @@ export default function Navigation() {
               onClick={() => !isDisabled && setCurrentScreen(item.id)}
               disabled={isDisabled}
               className={`
-                px-6 py-3 text-sm font-medium transition-colors relative
+                px-6 py-3 text-xs font-label uppercase tracking-wide-custom transition-colors relative
                 ${isActive 
-                  ? 'text-primary-400 bg-gray-800/50' 
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+                  ? 'text-accent-yellow bg-surface-raised' 
+                  : 'text-text-muted hover:text-text-secondary hover:bg-surface-raised/50'
                 }
                 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
               {item.label}
               {isActive && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-400" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-accent-yellow" />
               )}
             </button>
           )
