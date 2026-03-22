@@ -55,7 +55,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=marathon-idle
+          command: pages deploy dist --project-name=tau-ceti-idle
 
   deploy-server:
     name: Deploy server → Railway
