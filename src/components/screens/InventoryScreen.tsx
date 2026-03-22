@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store/gameStore'
-import type { Equipment, EquipmentSlot } from '@/types'
+import { SLOT_INFO } from '@/types'
+import type { Equipment, AllEquipmentSlot } from '@/types'
 
 export default function InventoryScreen() {
   const { inventory, runner, equipItem, removeFromInventory } = useGameStore()
@@ -32,7 +33,7 @@ export default function InventoryScreen() {
     </div>
   )
 
-  function isEquipped(slot: EquipmentSlot, id: string): boolean {
+  function isEquipped(slot: AllEquipmentSlot, id: string): boolean {
     return runner.equipment[slot]?.id === id
   }
 }
@@ -50,7 +51,7 @@ function InventoryItem({ item, onEquip, onDrop, isEquipped }: InventoryItemProps
       <div className="flex justify-between items-start mb-2">
         <div>
           <h3 className={`font-medium rarity-${item.rarity}`}>{item.name}</h3>
-          <p className="text-xs text-gray-500 capitalize">{item.slot}</p>
+          <p className="text-xs text-gray-500">{SLOT_INFO[item.slot]?.name || item.slot}</p>
         </div>
         <RarityBadge rarity={item.rarity} />
       </div>
@@ -58,9 +59,12 @@ function InventoryItem({ item, onEquip, onDrop, isEquipped }: InventoryItemProps
       <div className="space-y-1 text-sm mb-3">
         {item.damage && <StatLine label="Damage" value={item.damage} />}
         {item.armor && <StatLine label="Armor" value={item.armor} />}
-        {item.accuracy && <StatLine label="Accuracy" value={`+${item.accuracy}%`} />}
+        {item.shield && <StatLine label="Shield" value={item.shield} />}
+        {item.accuracy && <StatLine label="Accuracy" value={`+${item.accuracy}`} />}
         {item.speed && <StatLine label="Speed" value={`+${item.speed}`} />}
-        {item.hackBonus && <StatLine label="Hack Bonus" value={`+${item.hackBonus}%`} />}
+        {item.hackBonus && <StatLine label="Hack" value={`+${item.hackBonus}`} />}
+        {item.healthBonus && <StatLine label="Health" value={`+${item.healthBonus}`} />}
+        {item.evasion && <StatLine label="Evasion" value={`+${item.evasion}`} />}
       </div>
 
       <p className="text-xs text-gray-500 mb-3">{item.description}</p>

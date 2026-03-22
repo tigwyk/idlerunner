@@ -1,110 +1,240 @@
+import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { SECTOR_NAMES, SECTOR_DESCRIPTIONS } from '@/game/config'
 import { getSectorConfig } from '@/game/sectors/SectorGenerator'
+import { STARTER_KITS, getKitById } from '@/game/data/kits'
+import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type SlotCategory } from '@/types'
 
 export default function DeploymentScreen() {
   const { runner, activeRun, startRun } = useGameStore()
+  const [showKits, setShowKits] = useState(false)
+  const [selectedKitId, setSelectedKitId] = useState<string>(STARTER_KITS[0].id)
 
   if (activeRun) {
     return (
       <div className="card">
-        <p className="text-gray-400">Run in progress. Return to overview to monitor.</p>
+        <p className="text-text-secondary">Run in progress. Return to overview to monitor.</p>
       </div>
     )
   }
 
   const sectors: Array<'residential' | 'industrial' | 'research'> = ['residential', 'industrial', 'research']
 
+  const hasCustomGear = Object.values(runner.equipment).some(e => e !== undefined)
+
+  const handleDeploy = (sector: 'residential' | 'industrial' | 'research') => {
+    if (showKits) {
+      startRun(sector, 'kit', selectedKitId)
+    } else {
+      startRun(sector, 'custom')
+    }
+  }
+
+  const selectedKit = showKits ? getKitById(selectedKitId) : null
+
+  const renderEquipmentSlot = (slot: AllEquipmentSlot, item?: { name: string; rarity: string; damage?: number; armor?: number; shield?: number; accuracy?: number; speed?: number; hackBonus?: number }) => (
+    <div key={slot} className="flex justify-between items-center p-2 bg-surface-dark rounded">
+      <span className="text-xs text-text-muted">{SLOT_INFO[slot].name}</span>
+      {item ? (
+        <div className="text-right">
+          <span className={`text-sm rarity-${item.rarity}`}>{item.name}</span>
+          <div className="flex gap-2 justify-end text-xs text-text-muted">
+            {item.damage && <span>DMG {item.damage}</span>}
+            {item.armor && <span>ARM {item.armor}</span>}
+            {item.shield && <span>SHD {item.shield}</span>}
+            {item.accuracy && <span>ACC +{item.accuracy}</span>}
+            {item.speed && <span>SPD +{item.speed}</span>}
+            {item.hackBonus && <span>HACK +{item.hackBonus}</span>}
+          </div>
+        </div>
+      ) : (
+        <span className="text-xs text-text-muted">Empty</span>
+      )}
+    </div>
+  )
+
+  const categories: SlotCategory[] = ['weapons', 'defense', 'core', 'implants']
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-300 mb-2">Deployment</h2>
-        <p className="text-sm text-gray-500">Select a sector to deploy your runner.</p>
+        <h2 className="text-lg font-display text-accent-yellow mb-2 uppercase tracking-wider">Deployment</h2>
+        <p className="text-sm text-text-muted">Equip your gear and deploy to extract resources and loot.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {sectors.map((sector) => {
-          const config = getSectorConfig(sector)
-          const isLocked = 
-            (sector === 'industrial' && runner.level < 5) ||
-            (sector === 'research' && runner.level < 10)
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="card">
+            <h3 className="section-title">Your Loadout</h3>
+            {hasCustomGear ? (
+              <div className="space-y-4">
+                {categories.map((category) => {
+                  const slots = SLOTS_BY_CATEGORY[category]
+                  const hasItems = slots.some(slot => runner.equipment[slot])
+                  if (!hasItems) return null
+                  
+                  return (
+                    <div key={category}>
+                      <div className="text-xs text-text-muted uppercase tracking-wide mb-2">{category}</div>
+                      <div className="space-y-2">
+                        {slots.map(slot => renderEquipmentSlot(slot, runner.equipment[slot]))}
+                      </div>
+                    </div>
+                  )
+                })}
+                <div className="mt-3 p-2 bg-danger-500/10 border border-danger-500/30 rounded">
+                  <p className="text-xs text-danger-400">
+                    Risk: Failed extraction = all equipped gear is permanently lost
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-text-primary text-sm mb-1">No equipment equipped</p>
+                <p className="text-xs text-text-muted mb-3">Equip items from your inventory before deploying.</p>
+                <button
+                  onClick={() => setShowKits(true)}
+                  className="text-xs text-accent-lime hover:text-accent-yellow transition-colors"
+                >
+                  Or use a free starter kit instead
+                </button>
+              </div>
+            )}
+          </div>
 
-          return (
-            <SectorDeploymentCard
-              key={sector}
-              type={sector}
-              config={config}
-              locked={isLocked}
-              lockReason={
-                sector === 'industrial' ? 'Requires Level 5' :
-                sector === 'research' ? 'Requires Level 10' : undefined
-              }
-              onDeploy={() => startRun(sector)}
-            />
-          )
-        })}
-      </div>
+          {hasCustomGear && (
+            <button
+              onClick={() => setShowKits(!showKits)}
+              className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+            >
+              {showKits ? '← Use your custom loadout instead' : 'No gear to risk? Use a free starter kit →'}
+            </button>
+          )}
 
-      <div className="card">
-        <h3 className="font-medium text-gray-300 mb-3">Deployment Info</h3>
-        <div className="text-sm text-gray-500 space-y-2">
-          <p>• Your runner will automatically navigate through rooms in the sector.</p>
-          <p>• Combat encounters are resolved automatically based on your stats.</p>
-          <p>• Collect resources and equipment along the way.</p>
-          <p>• Reach the extraction point before time runs out to secure your loot.</p>
-          <p>• Failed extractions result in losing all collected loot.</p>
+          {showKits && (
+            <div className="card border-accent-lime/30">
+              <h3 className="section-title text-accent-lime">Free Starter Kits</h3>
+              <p className="text-xs text-text-muted mb-3">
+                Kits are lost on extraction but can be replaced for free from faction vendors.
+              </p>
+              <div className="space-y-2">
+                {STARTER_KITS.map((kit) => (
+                  <button
+                    key={kit.id}
+                    onClick={() => setSelectedKitId(kit.id)}
+                    className={`w-full p-3 rounded border text-left transition-colors ${
+                      selectedKitId === kit.id
+                        ? 'bg-surface-elevated border-accent-lime'
+                        : 'bg-surface-dark border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-sm text-text-primary">{kit.name}</div>
+                        <div className="text-xs text-text-muted">{kit.faction}</div>
+                      </div>
+                      {kit.bonusStats && (
+                        <div className="text-xs text-accent-lime">
+                          +{Object.values(kit.bonusStats).reduce((a, b) => a + b, 0)} stats
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {selectedKit && (
+                <div className="mt-3 pt-3 border-t border-white/5">
+                  <div className="text-xs text-text-muted mb-2">{selectedKit.name} Contents:</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ALL_SLOTS.filter(slot => selectedKit.equipment[slot]).map((slot) => {
+                      const item = selectedKit.equipment[slot]
+                      if (!item) return null
+                      return (
+                        <div key={slot} className="p-2 bg-surface-dark rounded text-xs">
+                          <div className="text-text-muted text-[10px] uppercase">{SLOT_INFO[slot].name}</div>
+                          <div className={`rarity-${item.rarity}`}>{item.name}</div>
+                          <div className="text-text-muted">
+                            {item.damage && `DMG ${item.damage}`}
+                            {item.armor && `ARM ${item.armor}`}
+                            {item.shield && `SHD ${item.shield}`}
+                            {item.hackBonus && `HACK +${item.hackBonus}`}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="card">
+            <h3 className="section-title">Select Sector</h3>
+            <div className="space-y-3">
+              {sectors.map((sector) => {
+                const config = getSectorConfig(sector)
+                const isLocked = 
+                  (sector === 'industrial' && runner.level < 5) ||
+                  (sector === 'research' && runner.level < 10)
+                const canDeploy = showKits || hasCustomGear
+
+                return (
+                  <div
+                    key={sector}
+                    className={`p-4 rounded border transition-colors ${
+                      isLocked
+                        ? 'bg-surface-raised border-white/5 opacity-50'
+                        : 'bg-surface-raised border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="text-sm text-text-primary">{SECTOR_NAMES[sector]}</h4>
+                        <p className="text-xs text-text-muted mt-0.5">{SECTOR_DESCRIPTIONS[sector]}</p>
+                      </div>
+                      <div className="text-accent-yellow text-xs">
+                        {'★'.repeat(config.difficulty)}{'☆'.repeat(3 - config.difficulty)}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between text-xs text-text-muted mb-3">
+                      <span>{config.roomCount} rooms</span>
+                      <span>{config.maxExtractionTime}s limit</span>
+                    </div>
+
+                    {isLocked ? (
+                      <div className="text-xs text-text-muted text-center py-2">
+                        {sector === 'industrial' ? 'Requires Level 5' : 'Requires Level 10'}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleDeploy(sector)}
+                        disabled={!canDeploy}
+                        className={`btn w-full ${canDeploy ? (showKits ? 'btn-secondary' : 'btn-accent') : 'opacity-50 cursor-not-allowed bg-surface-dark text-text-muted'}`}
+                      >
+                        {showKits ? 'Deploy with Kit' : hasCustomGear ? 'Deploy' : 'Equip Gear or Select Kit'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="card">
+            <h3 className="section-title">Intel</h3>
+            <div className="text-xs text-text-muted space-y-2">
+              <p>• Deploy with <span className="text-accent-yellow">your gear</span> to maximize effectiveness. Failed extraction = gear lost.</p>
+              <p>• <span className="text-accent-lime">Starter kits</span> are a safe fallback. Lost on extraction but free to replace.</p>
+              <p>• Combat is auto-resolved based on equipment and skills.</p>
+              <p>• Reach extraction before the timer expires to bank your loot.</p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-interface SectorDeploymentCardProps {
-  type: 'residential' | 'industrial' | 'research'
-  config: ReturnType<typeof getSectorConfig>
-  locked: boolean
-  lockReason?: string
-  onDeploy: () => void
-}
-
-function SectorDeploymentCard({ type, config, locked, lockReason, onDeploy }: SectorDeploymentCardProps) {
-  const difficultyStars = '★'.repeat(config.difficulty) + '☆'.repeat(3 - config.difficulty)
-
-  return (
-    <div className={`card ${locked ? 'opacity-50' : ''}`}>
-      <div className="mb-4">
-        <h3 className="font-semibold text-gray-200">{SECTOR_NAMES[type]}</h3>
-        <p className="text-xs text-gray-500 mt-1">{SECTOR_DESCRIPTIONS[type]}</p>
-      </div>
-
-      <div className="space-y-2 text-sm mb-4">
-        <div className="flex justify-between">
-          <span className="text-gray-500">Difficulty</span>
-          <span className="text-warning-400">{difficultyStars}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Rooms</span>
-          <span className="text-gray-300">{config.roomCount}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Time Limit</span>
-          <span className="text-gray-300">{config.maxExtractionTime}s</span>
-        </div>
-      </div>
-
-      <button
-        onClick={onDeploy}
-        disabled={locked}
-        className={`
-          w-full py-2 rounded font-medium text-sm transition-colors
-          ${locked 
-            ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-            : 'bg-primary-600 hover:bg-primary-500 text-white'
-          }
-        `}
-      >
-        {locked ? (lockReason || 'Locked') : 'Deploy'}
-      </button>
     </div>
   )
 }
