@@ -24,10 +24,7 @@ async function buildHeaders(): Promise<Record<string, string>> {
     data: { session },
   } = await supabase.auth.getSession()
 
-  console.debug('[API] buildHeaders | has session:', !!session, '| has token:', !!session?.access_token)
-
   const headers: Record<string, string> = {}
-
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`
   }
@@ -72,7 +69,17 @@ export function fetchBackendHealth(): Promise<BackendHealth> {
   return getJson('/api/health', backendHealthSchema)
 }
 
-export function fetchAuthProfile(): Promise<AuthProfileResponse> {
+export function fetchAuthProfile(accessToken?: string): Promise<AuthProfileResponse> {
+  if (accessToken) {
+    // Called from inside an onAuthStateChange callback where getSession() would
+    // deadlock (it awaits initializePromise which hasn't resolved yet). Use the
+    // token we already have from the event instead.
+    return fetch(`${API_BASE_URL}/api/auth/profile`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((r) => r.json())
+      .then((data) => authProfileResponseSchema.parse(data))
+  }
   return getJson('/api/auth/profile', authProfileResponseSchema)
 }
 

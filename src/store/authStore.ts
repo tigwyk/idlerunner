@@ -24,11 +24,12 @@ async function applySession(
   set: (partial: Partial<AuthStore>) => void,
   isInitialLoad = false
 ) {
-  console.debug('[Auth] applySession | has session:', !!session, '| isInitialLoad:', isInitialLoad)
   if (session) {
     try {
-      const response = await fetchAuthProfile()
-      console.debug('[Auth] fetchAuthProfile response:', response)
+      // Pass the access token directly to avoid calling getSession() inside an
+      // onAuthStateChange callback — doing so deadlocks because getSession() waits
+      // for initializePromise which hasn't resolved yet during that callback.
+      const response = await fetchAuthProfile(session.access_token)
       if (response.needsSetup) {
         set({
           status: 'setup-required',
@@ -86,7 +87,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.debug('[Auth] onAuthStateChange event:', event, '| has session:', !!session)
       if (event === 'INITIAL_SESSION') {
         // Fired on every page load with the session from storage (or null).
         await applySession(session, set, true)
