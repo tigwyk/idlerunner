@@ -22,12 +22,13 @@ export default function DeploymentScreen() {
   // When matched, auto-start the run and join the session
   useEffect(() => {
     if (!isMatched || !queueState?.runSessionId || !queueState.sector || !profile) return
+    // Guard: don't start a second run if one is already in progress
+    if (activeRun) return
 
     const sector = queueState.sector
     const sessionId = queueState.runSessionId
     const userId = profile.id
 
-    // Start the local run then join the server session
     if (showKits) {
       startRun(sector, 'kit', selectedKitId)
     } else {

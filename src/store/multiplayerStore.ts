@@ -187,7 +187,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set) => ({
       runSocket.close()
       runSocket = null
     }
-    set({ activeRunSession: null, pvpEvent: null })
+    set({ activeRunSession: null, pvpEvent: null, queueState: null })
     stopQueuePolling()
   },
 
