@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { Session } from '@supabase/supabase-js'
 import type { OAuthProvider, PlayerProfile } from '@shared'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { callSetupUsername, fetchAuthProfile, logoutProfile } from '@/lib/multiplayerApi'
@@ -13,6 +14,48 @@ interface AuthStore {
   startLogin: (provider: OAuthProvider) => Promise<void>
   completeSetup: (username: string) => Promise<void>
   logout: () => Promise<void>
+}
+
+// Holds the active Supabase auth subscription so re-initialization can clean it up.
+let authSubscription: { unsubscribe: () => void } | null = null
+
+async function applySession(
+  session: Session | null,
+  set: (partial: Partial<AuthStore>) => void,
+  isInitialLoad = false
+) {
+  if (session) {
+    try {
+      const response = await fetchAuthProfile()
+      if (response.needsSetup) {
+        set({
+          status: 'setup-required',
+          availableProviders: response.availableProviders,
+          message: response.message,
+          setupError: null,
+        })
+      } else {
+        set({
+          status: response.authenticated ? 'authenticated' : 'anonymous',
+          profile: response.profile,
+          availableProviders: response.availableProviders,
+          message: response.message,
+        })
+      }
+    } catch {
+      set({ status: 'error', message: 'Signed in but failed to fetch profile.' })
+    }
+  } else {
+    set({
+      status: 'anonymous',
+      profile: null,
+      availableProviders: ['google', 'discord'],
+      message: isInitialLoad
+        ? 'Sign in with an OAuth provider to access multiplayer features.'
+        : 'Signed out.',
+      setupError: null,
+    })
+  }
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -35,65 +78,29 @@ export const useAuthStore = create<AuthStore>((set) => ({
       return
     }
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        try {
-          const response = await fetchAuthProfile()
-          if (response.needsSetup) {
-            set({
-              status: 'setup-required',
-              availableProviders: response.availableProviders,
-              message: response.message,
-              setupError: null,
-            })
-          } else {
-            set({
-              status: response.authenticated ? 'authenticated' : 'anonymous',
-              profile: response.profile,
-              availableProviders: response.availableProviders,
-              message: response.message,
-            })
-          }
-        } catch {
-          set({ status: 'error', message: 'Signed in but failed to fetch profile.' })
+    // Remove any stale listener before registering a new one.
+    authSubscription?.unsubscribe()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        // Fired on every page load with the session from storage (or null).
+        await applySession(session, set, true)
+      } else if (event === 'SIGNED_IN') {
+        // Fired after OAuth redirect. Clean the URL so the auth code isn't
+        // re-processed (and potentially invalidated) on the next page refresh.
+        if (window.location.hash || window.location.search.includes('code=')) {
+          window.history.replaceState({}, '', window.location.pathname)
         }
+        await applySession(session, set)
       } else if (event === 'SIGNED_OUT') {
-        set({ status: 'anonymous', profile: null, message: 'Signed out.', setupError: null })
+        await applySession(null, set)
       }
+      // TOKEN_REFRESHED: access token rotated silently — profile unchanged, no action needed.
     })
 
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (session) {
-        const response = await fetchAuthProfile()
-        if (response.needsSetup) {
-          set({
-            status: 'setup-required',
-            availableProviders: response.availableProviders,
-            message: response.message,
-            setupError: null,
-          })
-        } else {
-          set({
-            status: response.authenticated ? 'authenticated' : 'anonymous',
-            profile: response.profile,
-            availableProviders: response.availableProviders,
-            message: response.message,
-          })
-        }
-      } else {
-        set({
-          status: 'anonymous',
-          availableProviders: ['google', 'discord'],
-          message: 'Sign in with an OAuth provider to access multiplayer features.',
-        })
-      }
-    } catch {
-      set({ status: 'error', message: 'Unable to reach the multiplayer backend.' })
-    }
+    authSubscription = subscription
   },
 
   startLogin: async (provider) => {
