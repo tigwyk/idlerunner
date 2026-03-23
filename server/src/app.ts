@@ -21,7 +21,7 @@ export function buildServer() {
   // If unset, all origins are allowed (fine for local dev, not for production).
   const rawOrigin = process.env.ALLOWED_ORIGIN
   const allowedOrigins = rawOrigin
-    ? rawOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+    ? rawOrigin.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean)
     : null
   void app.register(cors, {
     origin: allowedOrigins === null ? true : allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
