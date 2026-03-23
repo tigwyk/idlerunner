@@ -10,7 +10,7 @@ import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type Sl
 export default function DeploymentScreen() {
   const { runner, activeRun, startRun } = useGameStore()
   const { status: authStatus, profile } = useAuthStore()
-  const { queueState, joinQueue, leaveQueue, startMultiplayerRun } = useMultiplayerStore()
+  const { queueState, message: mpMessage, joinQueue, leaveQueue, startMultiplayerRun } = useMultiplayerStore()
   const [showKits, setShowKits] = useState(false)
   const [selectedKitId, setSelectedKitId] = useState<string>(STARTER_KITS[0].id)
   const [multiplayerMode, setMultiplayerMode] = useState(false)
@@ -255,7 +255,10 @@ export default function DeploymentScreen() {
               </button>
             </div>
             {!isAuthenticated && (
-              <p className="text-xs text-text-muted mt-2">Sign in from the Multiplayer tab to enable co-op runs.</p>
+              <p className="text-xs text-text-muted mt-2">Sign in from the Multiplayer tab to enable multiplayer runs.</p>
+            )}
+            {isAuthenticated && multiplayerMode && mpMessage && (
+              <p className="text-xs text-accent-red mt-2">{mpMessage}</p>
             )}
           </div>
 
@@ -272,7 +275,7 @@ export default function DeploymentScreen() {
 
                 const deployLabel = () => {
                   if (!canDeploy) return 'Equip Gear or Select Kit'
-                  if (multiplayerMode && isAuthenticated) return isCurrentlyQueued ? 'In Queue...' : 'Queue for Co-op'
+                  if (multiplayerMode && isAuthenticated) return isCurrentlyQueued ? 'In Queue...' : 'Queue for Run'
                   return showKits ? 'Deploy with Kit' : 'Deploy'
                 }
 
@@ -327,7 +330,7 @@ export default function DeploymentScreen() {
               <p>• Combat is auto-resolved based on equipment and skills.</p>
               <p>• Reach extraction before the timer expires to bank your loot.</p>
               {multiplayerMode && (
-                <p>• <span className="text-accent-lime">Co-op mode:</span> You may encounter another runner in the same zone. PvP is automatically resolved.</p>
+                <p>• <span className="text-accent-lime">Multiplayer mode:</span> You may encounter another runner in the same zone. PvP is automatically resolved.</p>
               )}
             </div>
           </div>

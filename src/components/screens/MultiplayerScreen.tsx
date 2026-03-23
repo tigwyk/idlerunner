@@ -184,7 +184,7 @@ export default function MultiplayerScreen() {
             Leave Queue
           </button>
         </div>
-        <p className="text-xs text-gray-600">Tip: Enable <span className="text-gray-400">Co-op mode</span> on the Deployment screen to queue automatically when you deploy.</p>
+        <p className="text-xs text-gray-600">Tip: Enable <span className="text-gray-400">Multiplayer mode</span> on the Deployment screen to queue when you deploy.</p>
       </div>
     </div>
   )
