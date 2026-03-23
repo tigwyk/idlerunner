@@ -15,7 +15,7 @@ import { useMultiplayerStore } from '@/store/multiplayerStore'
 export default function AppShell() {
   const { currentScreen, tick, initializeGame, activeRun } = useGameStore()
   const { initializeAuth } = useAuthStore()
-  const { initializeMultiplayer, activeRunSession, endMultiplayerRun } = useMultiplayerStore()
+  const { initializeMultiplayer, endMultiplayerRun } = useMultiplayerStore()
 
   useEffect(() => {
     initializeGame()
@@ -29,12 +29,16 @@ export default function AppShell() {
     return () => clearInterval(interval)
   }, [tick, initializeGame, initializeAuth, initializeMultiplayer])
 
-  // Global cleanup: when the run ends (on any screen), tear down the multiplayer session
+  // Global cleanup: when the run ends (on any screen), tear down the multiplayer session.
+  // Always call endMultiplayerRun() unconditionally — it clears queueState, activeRunSession,
+  // and stops polling regardless of whether a WebSocket session was established. Without this,
+  // a stale queueState with status 'matched' can cause DeploymentScreen to auto-start a new
+  // run the next time it mounts.
   const prevActiveRun = useRef(activeRun)
   useEffect(() => {
     const runJustEnded = prevActiveRun.current !== null && activeRun === null
     prevActiveRun.current = activeRun
-    if (runJustEnded && activeRunSession) {
+    if (runJustEnded) {
       endMultiplayerRun()
       void initializeAuth() // refresh MMR
     }
