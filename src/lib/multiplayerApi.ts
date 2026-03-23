@@ -24,6 +24,8 @@ async function buildHeaders(): Promise<Record<string, string>> {
     data: { session },
   } = await supabase.auth.getSession()
 
+  console.debug('[API] buildHeaders | has session:', !!session, '| has token:', !!session?.access_token)
+
   const headers: Record<string, string> = {}
 
   if (session?.access_token) {
