@@ -1,6 +1,6 @@
 import { STAT_NAMES } from '@/game/config'
 import { useGameStore } from '@/store/gameStore'
-import { calculateTotalStats, calculateDamage, calculateAccuracy, calculateEvasion, calculateArmor, calculateHealth } from '@/game/runner/RunnerUtils'
+import { calculateTotalStats, calculateDamage, calculateAccuracy, calculateEvasion, calculateArmor, calculateHealth, calculateShield, calculateCritChance, calculateCritDamage } from '@/game/runner/RunnerUtils'
 import { SLOT_INFO, SLOTS_BY_CATEGORY } from '@/types'
 import type { SlotCategory } from '@/types'
 
@@ -41,6 +41,9 @@ export default function RunnerScreen() {
                 <CombatStat label="Accuracy" value={`${calculateAccuracy(runner)}%`} />
                 <CombatStat label="Evasion" value={`${calculateEvasion(runner)}%`} />
                 <CombatStat label="Armor" value={calculateArmor(runner).toString()} />
+                <CombatStat label="Shield" value={calculateShield(runner).toString()} />
+                <CombatStat label="Crit Chance" value={`${calculateCritChance(runner).toFixed(1)}%`} />
+                <CombatStat label="Crit Damage" value={`${calculateCritDamage(runner).toFixed(2)}×`} />
               </div>
             </div>
 

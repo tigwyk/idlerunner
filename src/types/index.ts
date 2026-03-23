@@ -26,7 +26,7 @@ export type SlotCategory = 'weapons' | 'defense' | 'core' | 'implants';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type RunnerStatus = 'idle' | 'deploying' | 'active' | 'extracting' | 'returning';
-export type GameScreen = 'overview' | 'deployment' | 'runner' | 'inventory' | 'skills' | 'log' | 'multiplayer';
+export type GameScreen = 'overview' | 'deployment' | 'runner' | 'inventory' | 'skills' | 'log' | 'multiplayer' | 'vendor';
 export type LoadoutType = 'kit' | 'custom';
 
 export interface Kit {

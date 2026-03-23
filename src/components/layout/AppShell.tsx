@@ -9,6 +9,7 @@ import RunnerScreen from '@/components/screens/RunnerScreen'
 import InventoryScreen from '@/components/screens/InventoryScreen'
 import SkillsScreen from '@/components/screens/SkillsScreen'
 import LogScreen from '@/components/screens/LogScreen'
+import VendorScreen from '@/components/screens/VendorScreen'
 import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
 import { PvpEventBanner } from '@/components/run/ActiveRunPanel'
@@ -59,6 +60,8 @@ export default function AppShell() {
         return <InventoryScreen />
       case 'skills':
         return <SkillsScreen />
+      case 'vendor':
+        return <VendorScreen />
       case 'log':
         return <LogScreen />
       default:

@@ -7,6 +7,7 @@ const NAV_ITEMS: { id: GameScreen; label: string }[] = [
   { id: 'runner', label: 'Runner' },
   { id: 'inventory', label: 'Inventory' },
   { id: 'skills', label: 'Skills' },
+  { id: 'vendor', label: 'Vendor' },
   { id: 'log', label: 'Log' },
   { id: 'multiplayer', label: 'Multiplayer' },
 ]
