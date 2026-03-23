@@ -28,6 +28,7 @@ interface MultiplayerStore {
   queueState: QueueResponse | null
   status: 'idle' | 'loading' | 'ready' | 'error'
   message: string | null
+  multiplayerMode: boolean
 
   // Active multiplayer run session
   activeRunSession: JoinRunResponse | null
@@ -43,6 +44,7 @@ interface MultiplayerStore {
   syncPosition: (sessionId: string, currentRoom: number) => Promise<void>
   endMultiplayerRun: () => void
   clearPvpEvent: () => void
+  setMultiplayerMode: (enabled: boolean) => void
 }
 
 let previewSocket: WebSocket | null = null
@@ -63,6 +65,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set) => ({
   queueState: null,
   status: 'idle',
   message: null,
+  multiplayerMode: false,
   activeRunSession: null,
   pvpEvent: null,
   lastPvpOutcome: null,
@@ -193,6 +196,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set) => ({
 
   clearPvpEvent: () => {
     set({ pvpEvent: null })
+  },
+
+  setMultiplayerMode: (enabled: boolean) => {
+    set({ multiplayerMode: enabled })
   },
 
   connectEncounterPreview: (encounterId = 'demo') => {

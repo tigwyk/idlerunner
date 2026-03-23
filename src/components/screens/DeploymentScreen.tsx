@@ -10,10 +10,9 @@ import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type Sl
 export default function DeploymentScreen() {
   const { runner, activeRun, startRun } = useGameStore()
   const { status: authStatus, profile } = useAuthStore()
-  const { queueState, message: mpMessage, joinQueue, leaveQueue, startMultiplayerRun } = useMultiplayerStore()
+  const { queueState, message: mpMessage, status, multiplayerMode, joinQueue, leaveQueue, startMultiplayerRun, setMultiplayerMode } = useMultiplayerStore()
   const [showKits, setShowKits] = useState(false)
   const [selectedKitId, setSelectedKitId] = useState<string>(STARTER_KITS[0].id)
-  const [multiplayerMode, setMultiplayerMode] = useState(false)
 
   const isAuthenticated = authStatus === 'authenticated'
   const isQueued = queueState?.status === 'queued'
@@ -245,7 +244,7 @@ export default function DeploymentScreen() {
                 </p>
               </div>
               <button
-                onClick={() => setMultiplayerMode((m) => !m)}
+                onClick={() => setMultiplayerMode(!multiplayerMode)}
                 disabled={!isAuthenticated}
                 title={!isAuthenticated ? 'Sign in to enable multiplayer runs' : undefined}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
@@ -262,7 +261,10 @@ export default function DeploymentScreen() {
             {!isAuthenticated && (
               <p className="text-xs text-text-muted mt-2">Sign in from the Multiplayer tab to enable multiplayer runs.</p>
             )}
-            {isAuthenticated && multiplayerMode && mpMessage && (
+            {isAuthenticated && multiplayerMode && mpMessage && status === 'error' && (
+              <p className="text-xs text-accent-red mt-2">{mpMessage}</p>
+            )}
+            {isAuthenticated && multiplayerMode && mpMessage && status !== 'error' && mpMessage.toLowerCase().includes('unable') && (
               <p className="text-xs text-accent-red mt-2">{mpMessage}</p>
             )}
           </div>
