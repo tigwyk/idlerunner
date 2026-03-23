@@ -8,6 +8,7 @@ import {
   broadcastToSession,
   updatePosition,
 } from '../state/runSessionStore.js'
+import { isBot } from '../state/botStore.js'
 
 export async function registerRunRoutes(app: FastifyInstance) {
   /** Join an active run session after being matched. */
@@ -61,14 +62,14 @@ export async function registerRunRoutes(app: FastifyInstance) {
     const { currentRoom } = runPositionSyncRequestSchema.parse(request.body ?? {})
     const pvpOutcome = await updatePosition(sessionId, user.id, currentRoom)
 
-    // Persist MMR changes to Supabase after PvP resolution
+    // Persist MMR changes to Supabase after PvP resolution (skip bot players)
     if (pvpOutcome && supabaseAdmin) {
       const winnerPlayer = session.players.get(pvpOutcome.winnerId)
       const loserPlayer = session.players.get(pvpOutcome.loserId)
 
       const updates: PromiseLike<unknown>[] = []
 
-      if (winnerPlayer) {
+      if (winnerPlayer && !isBot(pvpOutcome.winnerId)) {
         updates.push(
           supabaseAdmin
             .from('profiles')
@@ -77,7 +78,7 @@ export async function registerRunRoutes(app: FastifyInstance) {
         )
       }
 
-      if (loserPlayer) {
+      if (loserPlayer && !isBot(pvpOutcome.loserId)) {
         updates.push(
           supabaseAdmin
             .from('profiles')
@@ -86,17 +87,20 @@ export async function registerRunRoutes(app: FastifyInstance) {
         )
       }
 
-      updates.push(
-        supabaseAdmin.from('encounters').insert({
-          player_a_id: pvpOutcome.winnerId,
-          player_b_id: pvpOutcome.loserId,
-          winner_id: pvpOutcome.winnerId,
-          encounter_type: 'pvp',
-          sector: session.sector,
-          mmr_change_a: pvpOutcome.mmrChange.winner,
-          mmr_change_b: pvpOutcome.mmrChange.loser,
-        })
-      )
+      // Only insert encounter record if at least one real player was involved
+      if (!isBot(pvpOutcome.winnerId) || !isBot(pvpOutcome.loserId)) {
+        updates.push(
+          supabaseAdmin.from('encounters').insert({
+            player_a_id: isBot(pvpOutcome.winnerId) ? pvpOutcome.loserId : pvpOutcome.winnerId,
+            player_b_id: isBot(pvpOutcome.loserId) ? pvpOutcome.winnerId : pvpOutcome.loserId,
+            winner_id: isBot(pvpOutcome.winnerId) ? pvpOutcome.loserId : pvpOutcome.winnerId,
+            encounter_type: 'pvp',
+            sector: session.sector,
+            mmr_change_a: pvpOutcome.mmrChange.winner,
+            mmr_change_b: pvpOutcome.mmrChange.loser,
+          })
+        )
+      }
 
       await Promise.allSettled(updates.map((p) => Promise.resolve(p)))
     }

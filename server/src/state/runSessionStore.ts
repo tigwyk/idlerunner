@@ -3,6 +3,13 @@ import type { WebSocket } from '@fastify/websocket'
 import { calculateLootAtStake, calculatePvpMmrChange, resolvePvp, PVP_ENCOUNTER_CHANCE } from '../../../shared/src/combat.js'
 import type { RunEvent, PvpOutcome } from '../../../shared/src/index.js'
 
+// Sector room counts — bot advances through this many rooms
+const SECTOR_ROOMS: Record<SectorType, number> = {
+  residential: 8,
+  industrial: 12,
+  research: 16,
+}
+
 export interface RunPlayer {
   userId: string
   runnerName: string
@@ -18,9 +25,11 @@ interface RunSession {
   sockets: Map<string, WebSocket>
   pvpActive: boolean
   createdAt: number
+  botIntervals: Map<string, ReturnType<typeof setInterval>>
 }
 
 const sessions = new Map<string, RunSession>()
+const botIntervals = new Map<string, ReturnType<typeof setInterval>>()
 
 function generateId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
@@ -44,6 +53,7 @@ export function createSession(
     sockets: new Map(),
     pvpActive: false,
     createdAt: Date.now(),
+    botIntervals: new Map(),
   })
 
   return sessionId
@@ -170,7 +180,64 @@ export async function updatePosition(
   return null
 }
 
+export function startBotMovement(sessionId: string, botUserId: string) {
+  const session = sessions.get(sessionId)
+  if (!session) return
+
+  const maxRooms = SECTOR_ROOMS[session.sector] ?? 12
+
+  const tick = () => {
+    const s = sessions.get(sessionId)
+    if (!s) return
+    const bot = s.players.get(botUserId)
+    if (!bot) return
+    if (bot.currentRoom >= maxRooms - 1) {
+      // Bot reached the end — stop moving
+      const interval = s.botIntervals.get(botUserId)
+      if (interval) {
+        clearInterval(interval)
+        s.botIntervals.delete(botUserId)
+      }
+      return
+    }
+    bot.currentRoom += 1
+    bot.lastSync = Date.now()
+    // Trigger overlap check for all real players in same room
+    for (const [otherId, other] of s.players) {
+      if (otherId === botUserId) continue
+      if (other.currentRoom === bot.currentRoom && !s.pvpActive) {
+        // Use the same PvP logic as a real position sync — fire and forget
+        updatePosition(sessionId, botUserId, bot.currentRoom).catch(() => undefined)
+        break
+      }
+    }
+  }
+
+  // Random interval between 8–15 seconds per room advance
+  const scheduleNext = () => {
+    const s = sessions.get(sessionId)
+    if (!s) return
+    const ms = 8000 + Math.floor(Math.random() * 7000)
+    const id = setTimeout(() => {
+      tick()
+      scheduleNext()
+    }, ms)
+    // Store as a timer we can cancel — reuse botIntervals map with a dummy interval wrapper
+    // We store the timeout id boxed as an interval-compatible ref
+    ;(session.botIntervals as Map<string, ReturnType<typeof setTimeout>>).set(botUserId, id)
+  }
+
+  scheduleNext()
+}
+
 export function endSession(sessionId: string) {
+  const session = sessions.get(sessionId)
+  if (session) {
+    for (const interval of session.botIntervals.values()) {
+      clearInterval(interval)
+    }
+    session.botIntervals.clear()
+  }
   sessions.delete(sessionId)
 }
 

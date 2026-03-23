@@ -8,6 +8,7 @@ interface QueueEntry {
   mmr: number
   status: 'queued' | 'matched'
   runSessionId?: string
+  queuedAt: number
 }
 
 const queue = new Map<string, QueueEntry>()
@@ -29,6 +30,7 @@ export function joinQueue(userId: string, request: QueueRequest, mmr: number) {
     roomProgress: request.roomProgress,
     mmr,
     status: 'queued',
+    queuedAt: Date.now(),
   }
 
   queue.set(userId, entry)
