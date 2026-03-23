@@ -16,9 +16,15 @@ export function buildServer() {
     logger: false,
   })
 
-  const allowedOrigin = process.env.ALLOWED_ORIGIN
+  // ALLOWED_ORIGIN can be a single origin or a comma-separated list of origins.
+  // e.g. "https://myapp.com,https://preview.myapp.railway.app"
+  // If unset, all origins are allowed (fine for local dev, not for production).
+  const rawOrigin = process.env.ALLOWED_ORIGIN
+  const allowedOrigins = rawOrigin
+    ? rawOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+    : null
   void app.register(cors, {
-    origin: allowedOrigin ?? true,
+    origin: allowedOrigins === null ? true : allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     credentials: true,
   })
 
