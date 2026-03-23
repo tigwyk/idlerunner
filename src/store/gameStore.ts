@@ -109,6 +109,7 @@ export const useGameStore = create<GameStore>()(
             currentRoom: 0,
             equipment,
             activeKitId: kitId || null,
+            activeEffects: [],
           },
         }))
         
@@ -303,6 +304,7 @@ export const useGameStore = create<GameStore>()(
               currentRoom: 0,
               health: s.runner.maxHealth,
               activeKitId: null,
+              activeEffects: [],
             },
             runsCompleted: s.runsCompleted + 1,
           }))
@@ -328,6 +330,7 @@ export const useGameStore = create<GameStore>()(
               health: s.runner.maxHealth,
               equipment: createInitialEquipment(),
               activeKitId: null,
+              activeEffects: [],
             },
             runsFailed: s.runsFailed + 1,
           }))
@@ -347,7 +350,14 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'marathon-idle-save',
-      version: 2,
+      version: 3,
+      migrate(persistedState: unknown, version: number) {
+        const state = persistedState as GameState & { runner?: { activeEffects?: unknown[] } }
+        if (version < 3 && state.runner) {
+          state.runner.activeEffects = state.runner.activeEffects ?? []
+        }
+        return state as GameState
+      },
     }
   )
 )

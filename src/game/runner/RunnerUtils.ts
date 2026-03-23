@@ -47,6 +47,7 @@ export function createInitialRunner(): Runner {
       hacking: createInitialSkill('hacking'),
     },
     activeKitId: null,
+    activeEffects: [],
   }
 }
 

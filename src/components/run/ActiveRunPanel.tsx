@@ -4,6 +4,7 @@ import { useMultiplayerStore } from '@/store/multiplayerStore'
 import { useAuthStore } from '@/store/authStore'
 import { SECTOR_NAMES } from '@/game/config'
 import type { RunEvent } from '@shared'
+import type { StatusEffect } from '@/types'
 
 export default function ActiveRunPanel() {
   const { activeRun, runner, completeRun } = useGameStore()
@@ -86,6 +87,13 @@ export default function ActiveRunPanel() {
             percent={(runner.health / runner.maxHealth) * 100}
             color={runner.health < runner.maxHealth * 0.3 ? 'bg-danger-500' : 'bg-success-500'}
           />
+          {runner.activeEffects && runner.activeEffects.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {runner.activeEffects.map((effect, i) => (
+                <StatusBadge key={`${effect.type}-${i}`} effect={effect} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="p-3 bg-gray-800 rounded mb-4">
@@ -139,7 +147,7 @@ export default function ActiveRunPanel() {
   )
 }
 
-function PvpEventBanner({
+export function PvpEventBanner({
   event,
   myUserId,
   onDismiss,
@@ -148,6 +156,13 @@ function PvpEventBanner({
   myUserId: string
   onDismiss: () => void
 }) {
+  // Auto-dismiss resolved encounters after 5 seconds
+  useEffect(() => {
+    if (event.type !== 'pvp.encounter_resolved') return
+    const timer = setTimeout(onDismiss, 5000)
+    return () => clearTimeout(timer)
+  }, [event.type, onDismiss])
+
   if (event.type === 'pvp.encounter_started') {
     return (
       <div className="card border border-danger-500/50 bg-danger-500/10">
@@ -269,6 +284,28 @@ function ResourceMini({ type, amount }: { type: string; amount: number }) {
       <span className="text-gray-300 capitalize">{type}:</span>
       <span className="text-gray-400">{amount}</span>
     </div>
+  )
+}
+
+function StatusBadge({ effect }: { effect: StatusEffect }) {
+  const icons: Record<string, string> = {
+    burning: '🔥',
+    corrosive: '🧪',
+    emp: '⚡',
+    slow: '🐌',
+    stun: '💫',
+  }
+  const colors: Record<string, string> = {
+    burning: 'bg-orange-900/60 text-orange-300 border-orange-700',
+    corrosive: 'bg-green-900/60 text-green-300 border-green-700',
+    emp: 'bg-yellow-900/60 text-yellow-300 border-yellow-700',
+    slow: 'bg-blue-900/60 text-blue-300 border-blue-700',
+    stun: 'bg-purple-900/60 text-purple-300 border-purple-700',
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border ${colors[effect.type] ?? 'bg-gray-800 text-gray-400 border-gray-700'}`}>
+      {icons[effect.type]} {effect.type} {effect.duration}t
+    </span>
   )
 }
 

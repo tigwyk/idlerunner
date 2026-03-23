@@ -11,11 +11,12 @@ import SkillsScreen from '@/components/screens/SkillsScreen'
 import LogScreen from '@/components/screens/LogScreen'
 import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
+import { PvpEventBanner } from '@/components/run/ActiveRunPanel'
 
 export default function AppShell() {
   const { currentScreen, tick, initializeGame, activeRun } = useGameStore()
-  const { initializeAuth } = useAuthStore()
-  const { initializeMultiplayer, endMultiplayerRun } = useMultiplayerStore()
+  const { initializeAuth, profile } = useAuthStore()
+  const { initializeMultiplayer, endMultiplayerRun, pvpEvent, clearPvpEvent } = useMultiplayerStore()
 
   useEffect(() => {
     initializeGame()
@@ -70,6 +71,16 @@ export default function AppShell() {
       <Header />
       <Navigation />
       <main className="flex-1 p-4 max-w-6xl mx-auto w-full">
+        {/* Global PvP event banner — visible on any screen during a multiplayer run */}
+        {pvpEvent && currentScreen !== 'overview' && (
+          <div className="mb-4">
+            <PvpEventBanner
+              event={pvpEvent}
+              myUserId={profile?.id ?? ''}
+              onDismiss={clearPvpEvent}
+            />
+          </div>
+        )}
         {renderScreen()}
       </main>
     </div>

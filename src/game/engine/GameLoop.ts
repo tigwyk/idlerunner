@@ -4,15 +4,37 @@ import {
   calculateAccuracy, 
   calculateEvasion,
   calculateArmor,
+  calculateCritChance,
+  calculateCritDamage,
   getSkillBonus 
 } from '@/game/runner/RunnerUtils'
 import { generateLoot } from '@/game/loot/LootGenerator'
 import { GAME_CONFIG } from '@/game/config'
 import { ALL_SLOTS, SLOT_INFO } from '@/types'
+import type { StatusEffectType, EnemyType, SectorType } from '@/types'
+
+// Maps enemy type to the status effect it can inflict on hit
+const ENEMY_STATUS_EFFECT: Record<EnemyType, StatusEffectType | null> = {
+  scavenger: 'burning',
+  drone: 'emp',
+  turret: 'slow',
+  security: 'stun',
+  boss: 'corrosive',
+}
+
+// Hazard effect per sector: what status the environment applies
+const HAZARD_SECTOR_EFFECT: Record<SectorType, { effect: StatusEffectType; damage: { min: number; max: number }; label: string }> = {
+  residential: { effect: 'burning',  damage: { min: 5, max: 15 },  label: 'fire damage' },
+  industrial:  { effect: 'emp',      damage: { min: 10, max: 25 }, label: 'electrical surge' },
+  research:    { effect: 'corrosive', damage: { min: 20, max: 40 }, label: 'acid exposure' },
+}
 
 export function processTick(store: GameStore): void {
   const { activeRun, runner } = store
   if (!activeRun) return
+
+  // Process runner status effects first (DoT, debuffs)
+  processStatusEffects(store)
 
   const currentRoomData = activeRun.rooms[activeRun.currentRoom]
 
@@ -30,6 +52,9 @@ export function processTick(store: GameStore): void {
       break
     case 'loot':
       processLootRoom(store, currentRoomData)
+      break
+    case 'hazard':
+      processHazardRoom(store, currentRoomData)
       break
     case 'extraction':
       processExtractionRoom(store)
@@ -96,9 +121,16 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
   }
 
   if (Math.random() * 100 < accuracy) {
-    const actualDamage = Math.max(1, damage - enemy.armor * 0.5)
+    let actualDamage = Math.max(1, damage - enemy.armor * 0.5)
+    const critRoll = Math.random() * 100
+    const isCrit = critRoll < calculateCritChance(runner)
+    if (isCrit) {
+      actualDamage *= calculateCritDamage(runner)
+      store.addLog('combat', `Critical hit! Dealt ${Math.floor(actualDamage)} damage to ${enemy.name}`)
+    } else {
+      store.addLog('combat', `Dealt ${Math.floor(actualDamage)} damage to ${enemy.name}`)
+    }
     enemy.health -= actualDamage
-    store.addLog('combat', `Dealt ${Math.floor(actualDamage)} damage to ${enemy.name}`)
   }
 
   if (enemy.health > 0 && Math.random() * 100 > evasion) {
@@ -112,6 +144,14 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
     
     store.healRunner(-enemyDamage)
     store.addLog('danger', `Took ${Math.floor(enemyDamage)} damage from ${enemy.name}`)
+
+    // Enemy may apply a status effect on hit (~12% chance)
+    if (Math.random() < 0.12) {
+      const effectType = ENEMY_STATUS_EFFECT[enemy.type]
+      if (effectType) {
+        applyStatusEffect(store, effectType, 3, 10)
+      }
+    }
   }
 
   if (enemy.health <= 0) {
@@ -203,6 +243,111 @@ function processLootRoom(store: GameStore, room: import('@/types').Room): void {
 
 function processExtractionRoom(store: GameStore): void {
   store.completeRun(true)
+}
+
+function processHazardRoom(store: GameStore, room: import('@/types').Room): void {
+  const { activeRun, runner } = store
+  if (!activeRun) return
+
+  const sector = activeRun.sector as SectorType
+  const config = HAZARD_SECTOR_EFFECT[sector]
+  if (!config) {
+    advanceRoom(store)
+    return
+  }
+
+  const { min, max } = config.damage
+  let rawDamage = Math.floor(min + Math.random() * (max - min))
+  // Endurance reduces hazard damage 2% per point above 10
+  const enduranceReduction = Math.max(0, (runner.baseStats.endurance - 10) * 0.02)
+  const finalDamage = Math.max(1, Math.floor(rawDamage * (1 - enduranceReduction)))
+
+  store.healRunner(-finalDamage)
+  store.addLog('danger', `${room.name}: ${config.label} — took ${finalDamage} damage`)
+
+  // Apply sector hazard status effect
+  applyStatusEffect(store, config.effect, 3, 8)
+
+  if (runner.health - finalDamage <= 0) {
+    store.completeRun(false)
+    return
+  }
+
+  advanceRoom(store)
+}
+
+/** Apply or refresh a status effect on the runner. */
+function applyStatusEffect(
+  store: GameStore,
+  type: StatusEffectType,
+  duration: number,
+  strength: number
+): void {
+  const runner = store.runner
+  const existing = runner.activeEffects.find(e => e.type === type)
+  if (existing) {
+    existing.duration = Math.max(existing.duration, duration)
+    existing.strength = Math.max(existing.strength, strength)
+  } else {
+    runner.activeEffects.push({ type, duration, strength })
+  }
+  const effectLabel: Record<StatusEffectType, string> = {
+    burning: '🔥 Burning',
+    corrosive: '🧪 Corrosive',
+    emp: '⚡ EMP',
+    slow: '🐌 Slowed',
+    stun: '💫 Stunned',
+  }
+  store.addLog('danger', `Status: ${effectLabel[type]} applied`)
+}
+
+/** Process all active runner status effects and tick them down. */
+function processStatusEffects(store: GameStore): void {
+  const runner = store.runner
+  if (!runner.activeEffects || runner.activeEffects.length === 0) return
+
+  const toRemove: number[] = []
+
+  runner.activeEffects.forEach((effect, i) => {
+    switch (effect.type) {
+      case 'burning': {
+        // Endurance reduces burn damage 2%/point above 10
+        const reduction = Math.max(0, (runner.baseStats.endurance - 10) * 0.02)
+        const dmg = Math.max(1, Math.floor(effect.strength * (1 - reduction)))
+        if (runner.health - dmg <= 0) {
+          store.completeRun(false)
+          return
+        }
+        store.healRunner(-dmg)
+        store.addLog('danger', `🔥 Burning: ${dmg} damage`)
+        break
+      }
+      case 'corrosive':
+        // Armor debuff is applied at damage calc time (see calculateArmor calls); just log
+        store.addLog('danger', `🧪 Corrosive: armor reduced by ${effect.strength}%`)
+        break
+      case 'emp':
+        store.addLog('warning', `⚡ EMP: accuracy and hacking reduced by ${effect.strength}%`)
+        break
+      case 'slow':
+        store.addLog('warning', `🐌 Slowed: evasion reduced by ${effect.strength}%`)
+        break
+      case 'stun':
+        store.addLog('warning', `💫 Stunned: action skipped`)
+        break
+    }
+
+    effect.duration -= 1
+    if (effect.duration <= 0) toRemove.push(i)
+  })
+
+  // Remove expired effects (reverse order to preserve indices)
+  for (let i = toRemove.length - 1; i >= 0; i--) {
+    const idx = toRemove[i]
+    const expiredType = runner.activeEffects[idx].type
+    runner.activeEffects.splice(idx, 1)
+    store.addLog('info', `Status effect ${expiredType} expired`)
+  }
 }
 
 function advanceRoom(store: GameStore): void {

@@ -8,7 +8,7 @@ const ROOM_NAMES: Record<NodeType, string[]> = {
   extraction: ['Landing Pad', 'Evac Point', 'Drop Zone', 'Extraction Bay'],
 }
 
-const ENEMY_TEMPLATES: Record<SectorType, Partial<Record<string, Omit<Enemy, 'health' | 'maxHealth'>>>> = {
+const ENEMY_TEMPLATES: Record<SectorType, Partial<Record<string, Omit<Enemy, 'health' | 'maxHealth' | 'activeEffects'>>>> = {
   residential: {
     scavenger: {
       type: 'scavenger',
@@ -185,6 +185,7 @@ function generateEnemy(sectorType: SectorType, difficulty: number): Enemy | unde
     ...template,
     health,
     maxHealth: health,
+    activeEffects: [],
   } as Enemy
 }
 

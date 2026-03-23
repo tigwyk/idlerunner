@@ -5,6 +5,16 @@ export type SectorType = 'residential' | 'industrial' | 'research';
 export type NodeType = 'resource' | 'combat' | 'loot' | 'hazard' | 'extraction';
 export type EnemyType = 'scavenger' | 'drone' | 'turret' | 'security' | 'boss';
 
+export type StatusEffectType = 'burning' | 'corrosive' | 'emp' | 'slow' | 'stun'
+
+export interface StatusEffect {
+  type: StatusEffectType
+  /** Ticks remaining */
+  duration: number
+  /** Magnitude — damage/tick for burning, % penalty for others */
+  strength: number
+}
+
 export type WeaponSlot = 'weapon1' | 'weapon2';
 export type EquipmentSlot = 'equipment';
 export type ShieldSlot = 'shield';
@@ -109,6 +119,7 @@ export interface Runner {
   equipment: Partial<Record<AllEquipmentSlot, Equipment>>;
   skills: Record<SkillType, Skill>;
   activeKitId: string | null;
+  activeEffects: StatusEffect[];
 }
 
 export interface Enemy {
@@ -121,6 +132,7 @@ export interface Enemy {
   evasion: number;
   xpReward: number;
   lootTable: LootEntry[];
+  activeEffects: StatusEffect[];
 }
 
 export interface LootEntry {
