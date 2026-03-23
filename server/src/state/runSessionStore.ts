@@ -29,7 +29,6 @@ interface RunSession {
 }
 
 const sessions = new Map<string, RunSession>()
-const botIntervals = new Map<string, ReturnType<typeof setInterval>>()
 
 function generateId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
@@ -185,46 +184,29 @@ export function startBotMovement(sessionId: string, botUserId: string) {
   if (!session) return
 
   const maxRooms = SECTOR_ROOMS[session.sector] ?? 12
+  let stopped = false
 
-  const tick = () => {
-    const s = sessions.get(sessionId)
-    if (!s) return
-    const bot = s.players.get(botUserId)
-    if (!bot) return
-    if (bot.currentRoom >= maxRooms - 1) {
-      // Bot reached the end — stop moving
-      const interval = s.botIntervals.get(botUserId)
-      if (interval) {
-        clearInterval(interval)
-        s.botIntervals.delete(botUserId)
-      }
-      return
-    }
-    bot.currentRoom += 1
-    bot.lastSync = Date.now()
-    // Trigger overlap check for all real players in same room
-    for (const [otherId, other] of s.players) {
-      if (otherId === botUserId) continue
-      if (other.currentRoom === bot.currentRoom && !s.pvpActive) {
-        // Use the same PvP logic as a real position sync — fire and forget
-        updatePosition(sessionId, botUserId, bot.currentRoom).catch(() => undefined)
-        break
-      }
-    }
-  }
-
-  // Random interval between 8–15 seconds per room advance
   const scheduleNext = () => {
+    if (stopped) return
     const s = sessions.get(sessionId)
     if (!s) return
-    const ms = 8000 + Math.floor(Math.random() * 7000)
+
+    const ms = 8000 + Math.floor(Math.random() * 7000) // 8–15s per room
     const id = setTimeout(() => {
-      tick()
+      if (stopped) return
+      const curr = sessions.get(sessionId)
+      if (!curr) { stopped = true; return }
+
+      const bot = curr.players.get(botUserId)
+      if (!bot || bot.currentRoom >= maxRooms - 1) { stopped = true; return }
+
+      // Advance one room and trigger PvP check via the normal path
+      updatePosition(sessionId, botUserId, bot.currentRoom + 1).catch(() => undefined)
       scheduleNext()
     }, ms)
-    // Store as a timer we can cancel — reuse botIntervals map with a dummy interval wrapper
-    // We store the timeout id boxed as an interval-compatible ref
-    ;(session.botIntervals as Map<string, ReturnType<typeof setTimeout>>).set(botUserId, id)
+
+    // Store timeout so endSession can cancel it
+    session.botIntervals.set(botUserId, id as unknown as ReturnType<typeof setInterval>)
   }
 
   scheduleNext()
