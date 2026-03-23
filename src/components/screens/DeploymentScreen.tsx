@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
@@ -19,11 +19,15 @@ export default function DeploymentScreen() {
   const isQueued = queueState?.status === 'queued'
   const isMatched = queueState?.status === 'matched'
 
+  const startedSessionRef = useRef<string | null>(null)
+
   // When matched, auto-start the run and join the session
   useEffect(() => {
     if (!isMatched || !queueState?.runSessionId || !queueState.sector || !profile) return
-    // Guard: don't start a second run if one is already in progress
     if (activeRun) return
+    // Don't re-trigger if we already started this specific session
+    if (startedSessionRef.current === queueState.runSessionId) return
+    startedSessionRef.current = queueState.runSessionId
 
     const sector = queueState.sector
     const sessionId = queueState.runSessionId

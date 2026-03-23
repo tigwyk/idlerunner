@@ -7,8 +7,8 @@ import type { RunEvent } from '@shared'
 
 export default function ActiveRunPanel() {
   const { activeRun, runner, completeRun } = useGameStore()
-  const { activeRunSession, pvpEvent, syncPosition, endMultiplayerRun, clearPvpEvent } = useMultiplayerStore()
-  const { profile, initializeAuth } = useAuthStore()
+  const { activeRunSession, pvpEvent, syncPosition, clearPvpEvent } = useMultiplayerStore()
+  const { profile } = useAuthStore()
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Position sync — runs every 2s during a multiplayer run
@@ -26,14 +26,6 @@ export default function ActiveRunPanel() {
       }
     }
   }, [activeRunSession?.sessionId, activeRun?.sector]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // When run ends, clean up the multiplayer session and refresh MMR
-  useEffect(() => {
-    if (!activeRun && activeRunSession) {
-      endMultiplayerRun()
-      initializeAuth().catch(() => undefined)
-    }
-  }, [activeRun]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeRun) return null
 

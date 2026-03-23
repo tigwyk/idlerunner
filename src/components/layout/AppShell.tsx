@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import Header from './Header'
 import Navigation from './Navigation'
@@ -13,9 +13,9 @@ import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
 
 export default function AppShell() {
-  const { currentScreen, tick, initializeGame } = useGameStore()
-  const initializeAuth = useAuthStore((state) => state.initializeAuth)
-  const initializeMultiplayer = useMultiplayerStore((state) => state.initializeMultiplayer)
+  const { currentScreen, tick, initializeGame, activeRun } = useGameStore()
+  const { initializeAuth } = useAuthStore()
+  const { initializeMultiplayer, activeRunSession, endMultiplayerRun } = useMultiplayerStore()
 
   useEffect(() => {
     initializeGame()
@@ -28,6 +28,17 @@ export default function AppShell() {
 
     return () => clearInterval(interval)
   }, [tick, initializeGame, initializeAuth, initializeMultiplayer])
+
+  // Global cleanup: when the run ends (on any screen), tear down the multiplayer session
+  const prevActiveRun = useRef(activeRun)
+  useEffect(() => {
+    const runJustEnded = prevActiveRun.current !== null && activeRun === null
+    prevActiveRun.current = activeRun
+    if (runJustEnded && activeRunSession) {
+      endMultiplayerRun()
+      void initializeAuth() // refresh MMR
+    }
+  }, [activeRun]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderScreen = () => {
     switch (currentScreen) {
