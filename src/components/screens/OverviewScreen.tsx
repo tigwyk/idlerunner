@@ -1,10 +1,12 @@
 import { useGameStore } from '@/store/gameStore'
+import { useEconomyStore } from '@/store/economyStore'
 import { SECTOR_NAMES, SECTOR_DESCRIPTIONS } from '@/game/config'
 import ActiveRunPanel from '../run/ActiveRunPanel'
 import StatsPanel from '../runner/StatsPanel'
 
 export default function OverviewScreen() {
-  const { runner, activeRun, resources, runsCompleted, runsFailed, setCurrentScreen } = useGameStore()
+  const { runner, activeRun, runsCompleted, runsFailed, setCurrentScreen } = useGameStore()
+  const resources = useEconomyStore((state) => state.resources)
 
   if (activeRun) {
     return (

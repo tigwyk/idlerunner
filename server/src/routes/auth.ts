@@ -10,6 +10,10 @@ import { getAuthenticatedUser, isSupabaseConfigured, supabaseAdmin } from '../li
 const AVAILABLE_PROVIDERS = ['google', 'discord'] as const
 
 function rowToProfile(row: Record<string, unknown>) {
+  const resources = (row.resources as Record<string, number> | null) ?? {
+    credits: 100, metals: 0, electronics: 0, data: 0,
+  }
+  const statUpgrades = (row.stat_upgrades as Record<string, number> | null) ?? {}
   return {
     id: row.id as string,
     runnerName: row.runner_name as string,
@@ -18,6 +22,10 @@ function rowToProfile(row: Record<string, unknown>) {
     rankTier: row.rank_tier as string,
     careerRuns: row.career_runs as number,
     careerWins: row.career_wins as number,
+    economyState: {
+      resources,
+      statUpgrades,
+    },
   }
 }
 

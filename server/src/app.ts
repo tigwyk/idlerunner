@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import { registerAuthRoutes } from './routes/auth.js'
+import { registerEconomyRoutes } from './routes/economy.js'
 import { registerEncounterRoutes } from './routes/encounters.js'
 import { registerHealthRoutes } from './routes/health.js'
 import { registerLeaderboardRoutes } from './routes/leaderboards.js'
@@ -33,6 +34,7 @@ export function buildServer() {
 
   void app.register(registerHealthRoutes)
   void app.register(registerAuthRoutes)
+  void app.register(registerEconomyRoutes)
   void app.register(registerProfileRoutes)
   void app.register(registerLeaderboardRoutes)
   void app.register(registerMatchmakingRoutes)

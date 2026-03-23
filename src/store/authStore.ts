@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import type { OAuthProvider, PlayerProfile } from '@shared'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { callSetupUsername, fetchAuthProfile, logoutProfile } from '@/lib/multiplayerApi'
+import { applyEconomyState } from '@/store/economyStore'
 
 interface AuthStore {
   status: 'idle' | 'loading' | 'anonymous' | 'setup-required' | 'authenticated' | 'error'
@@ -44,6 +45,9 @@ async function applySession(
           availableProviders: response.availableProviders,
           message: response.message,
         })
+        if (response.authenticated && response.profile?.economyState) {
+          applyEconomyState(response.profile.economyState)
+        }
       }
     } catch {
       set({ status: 'error', message: 'Signed in but failed to fetch profile.' })

@@ -34,8 +34,31 @@ export const playerProfileSchema = z.object({
   rankTier: z.string(),
   careerRuns: z.number().int().nonnegative(),
   careerWins: z.number().int().nonnegative(),
+  economyState: z.object({
+    resources: z.object({
+      credits: z.number().int().default(100),
+      metals: z.number().int().default(0),
+      electronics: z.number().int().default(0),
+      data: z.number().int().default(0),
+    }),
+    statUpgrades: z.record(z.string(), z.number().int()).default({}),
+  }).optional(),
 })
 export type PlayerProfile = z.infer<typeof playerProfileSchema>
+
+export type ResourcesState = {
+  credits: number
+  metals: number
+  electronics: number
+  data: number
+}
+
+export type StatUpgradesState = Partial<Record<string, number>>
+
+export type EconomyState = {
+  resources: ResourcesState
+  statUpgrades: StatUpgradesState
+}
 
 export const authProfileResponseSchema = z.object({
   authenticated: z.boolean(),
@@ -219,3 +242,34 @@ export const runEventSchema = z.discriminatedUnion('type', [
   }),
 ])
 export type RunEvent = z.infer<typeof runEventSchema>
+
+// ─── Economy ──────────────────────────────────────────────────────────────────
+
+export const economyResourcesSchema = z.object({
+  credits: z.number().int().default(100),
+  metals: z.number().int().default(0),
+  electronics: z.number().int().default(0),
+  data: z.number().int().default(0),
+})
+
+export const economyStateResponseSchema = z.object({
+  resources: economyResourcesSchema,
+  statUpgrades: z.record(z.string(), z.number().int()).default({}),
+})
+export type EconomyStateResponse = z.infer<typeof economyStateResponseSchema>
+
+export const economySyncRequestSchema = z.object({
+  earned: economyResourcesSchema,
+  sector: z.enum(['residential', 'industrial', 'research']),
+  roomsCleared: z.number().int().nonnegative(),
+})
+export type EconomySyncRequest = z.infer<typeof economySyncRequestSchema>
+
+export const economyUpgradeResponseSchema = z.object({
+  ok: z.boolean(),
+  stat: z.string(),
+  newLevel: z.number().int(),
+  economy: economyStateResponseSchema,
+  message: z.string(),
+})
+export type EconomyUpgradeResponse = z.infer<typeof economyUpgradeResponseSchema>

@@ -1,9 +1,11 @@
 import { useGameStore } from '@/store/gameStore'
+import { useEconomyStore } from '@/store/economyStore'
 import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
 
 export default function Header() {
-  const { runner, resources, activeRun } = useGameStore()
+  const { runner, activeRun } = useGameStore()
+  const resources = useEconomyStore((state) => state.resources)
   const authStatus = useAuthStore((state) => state.status)
   const multiplayerStatus = useMultiplayerStore((state) => state.backendHealth?.status ?? 'offline')
 

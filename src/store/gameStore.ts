@@ -22,6 +22,7 @@ import { generateSector } from '@/game/sectors/SectorGenerator'
 import { processTick } from '@/game/engine/GameLoop'
 import { calculateOfflineProgress } from '@/game/engine/OfflineCalculator'
 import { getKitEquipment } from '@/game/data/kits'
+import { useEconomyStore } from '@/store/economyStore'
 
 export interface GameStore extends GameState {
   setCurrentScreen: (screen: GameScreen) => void
@@ -287,6 +288,17 @@ export const useGameStore = create<GameStore>()(
         if (!run) return
 
         if (success) {
+          const earned = run.resourcesCollected
+          useEconomyStore.getState().reportRunEarnings(
+            {
+              credits:     earned.credits     ?? 0,
+              metals:      earned.metals      ?? 0,
+              electronics: earned.electronics ?? 0,
+              data:        earned.data        ?? 0,
+            },
+            run.sector,
+            run.currentRoom,
+          )
           get().updateResources(run.resourcesCollected)
           run.equipmentCollected.forEach((e) => get().addToInventory(e))
           get().addRunnerXp(run.currentRoom * 10)
@@ -350,13 +362,19 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'marathon-idle-save',
-      version: 3,
+      version: 4,
       migrate(persistedState: unknown, version: number) {
         const state = persistedState as GameState & { runner?: { activeEffects?: unknown[] } }
         if (version < 3 && state.runner) {
           state.runner.activeEffects = state.runner.activeEffects ?? []
         }
-        return state as GameState
+        // v4: resources are now server-authoritative via economyStore; drop them from persist
+        return state as unknown as GameStore
+      },
+      partialize: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { resources: _resources, ...rest } = state as GameStore
+        return rest
       },
     }
   )

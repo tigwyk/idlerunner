@@ -2,6 +2,8 @@ import {
   authLogoutResponseSchema,
   authProfileResponseSchema,
   backendHealthSchema,
+  economyStateResponseSchema,
+  economyUpgradeResponseSchema,
   joinRunResponseSchema,
   leaderboardResponseSchema,
   queueResponseSchema,
@@ -9,9 +11,12 @@ import {
   type AuthLogoutResponse,
   type AuthProfileResponse,
   type BackendHealth,
+  type EconomyStateResponse,
+  type EconomyUpgradeResponse,
   type JoinRunResponse,
   type LeaderboardResponse,
   type QueueResponse,
+  type ResourcesState,
   type UsernameSetupResponse,
 } from '@shared'
 import type { SectorType } from '@/types'
@@ -127,5 +132,29 @@ export function syncRunPosition(sessionId: string, currentRoom: number): Promise
     `/api/runs/${sessionId}/position`,
     { method: 'POST', body: JSON.stringify({ currentRoom }) },
     { parse: () => undefined }
+  )
+}
+
+export function fetchEconomy(): Promise<EconomyStateResponse> {
+  return getJson('/api/economy', economyStateResponseSchema)
+}
+
+export function syncRunEarnings(
+  earned: ResourcesState,
+  sector: SectorType,
+  roomsCleared: number
+): Promise<EconomyStateResponse> {
+  return sendJson(
+    '/api/economy/sync',
+    { method: 'POST', body: JSON.stringify({ earned, sector, roomsCleared }) },
+    economyStateResponseSchema
+  )
+}
+
+export function purchaseUpgrade(stat: string): Promise<EconomyUpgradeResponse> {
+  return sendJson(
+    `/api/economy/upgrade/${stat}`,
+    { method: 'POST' },
+    economyUpgradeResponseSchema
   )
 }
