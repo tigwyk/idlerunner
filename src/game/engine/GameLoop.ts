@@ -6,7 +6,8 @@ import {
   calculateArmor,
   calculateCritChance,
   calculateCritDamage,
-  getSkillBonus 
+  getSkillBonus,
+  getMasteryBonus,
 } from '@/game/runner/RunnerUtils'
 import { generateLoot } from '@/game/loot/LootGenerator'
 import { GAME_CONFIG } from '@/game/config'
@@ -94,14 +95,15 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
 
   if (enemy.health <= 0) {
     const loot = generateLoot(enemy.lootTable, runner.skills.scavenging.level)
+    const prestigeXpMult = 1 + store.prestigeLevel * 0.15
     
     const equipmentUpdate: Partial<import('@/types').ActiveRun> = {
       enemiesDefeated: activeRun.enemiesDefeated + 1,
       resourcesCollected: mergeResources(activeRun.resourcesCollected, loot.resources),
       skillsUsed: {
         ...activeRun.skillsUsed,
-        combat: (activeRun.skillsUsed.combat || 0) + enemy.xpReward,
-        scavenging: (activeRun.skillsUsed.scavenging || 0) + Math.floor(enemy.xpReward * 0.5),
+        combat: (activeRun.skillsUsed.combat || 0) + Math.floor(enemy.xpReward * prestigeXpMult),
+        scavenging: (activeRun.skillsUsed.scavenging || 0) + Math.floor(enemy.xpReward * 0.5 * prestigeXpMult),
       },
     }
     
@@ -120,8 +122,18 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
     return
   }
 
+  // Check boss enrage at ≤50% HP
+  if (enemy.type === 'boss' && !enemy.enraged && enemy.health <= enemy.maxHealth * 0.5) {
+    enemy.enraged = true
+    enemy.damage = Math.floor(enemy.damage * 2)
+    const enrageEffect = enemy.type === 'boss' ? ('burning' as import('@/types').StatusEffectType) : null
+    if (enrageEffect) applyStatusEffect(store, enrageEffect, 4, 15)
+    store.addLog('danger', `⚠️ ${enemy.name} ENRAGES! Damage doubled!`)
+  }
+
+  const combatMasteryBonus = getMasteryBonus(runner.skills.combat)
   if (Math.random() * 100 < accuracy) {
-    let actualDamage = Math.max(1, damage - enemy.armor * 0.5)
+    let actualDamage = Math.max(1, (damage * combatMasteryBonus) - enemy.armor * 0.5)
     const critRoll = Math.random() * 100
     const isCrit = critRoll < calculateCritChance(runner)
     if (isCrit) {
@@ -156,27 +168,38 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
 
   if (enemy.health <= 0) {
     const loot = generateLoot(enemy.lootTable, runner.skills.scavenging.level)
+    const prestigeXpMult = 1 + store.prestigeLevel * 0.15
     
     const equipmentUpdate: Partial<import('@/types').ActiveRun> = {
       enemiesDefeated: activeRun.enemiesDefeated + 1,
       resourcesCollected: mergeResources(activeRun.resourcesCollected, loot.resources),
       skillsUsed: {
         ...activeRun.skillsUsed,
-        combat: (activeRun.skillsUsed.combat || 0) + enemy.xpReward,
+        combat: (activeRun.skillsUsed.combat || 0) + Math.floor(enemy.xpReward * prestigeXpMult),
       },
     }
     
-    if (Math.random() < 0.15) {
-      const equipment = generateEquipmentLoot(runner.level)
-      if (equipment) {
-        equipmentUpdate.equipmentCollected = [...activeRun.equipmentCollected, equipment]
-        store.addLog('loot', `Found ${equipment.name}!`)
-      }
+    const randomDrop = Math.random() < 0.15 ? generateEquipmentLoot(runner.level) : null
+    const bossDrop = enemy.type === 'boss' ? generateBossLoot(runner.level) : null
+    
+    const newEquipment = [...activeRun.equipmentCollected]
+    if (randomDrop) {
+      newEquipment.push(randomDrop)
+      store.addLog('loot', `Found ${randomDrop.name}!`)
+    }
+    if (bossDrop) {
+      newEquipment.push(bossDrop)
+      store.addLog('loot', `[BOSS DROP] ${bossDrop.name}!`)
+    }
+    if (newEquipment.length > activeRun.equipmentCollected.length) {
+      equipmentUpdate.equipmentCollected = newEquipment
     }
     
     store.updateActiveRun(equipmentUpdate)
     
-    store.addLog('combat', `Defeated ${enemy.name}`)
+    store.addLog('combat', enemy.type === 'boss'
+      ? `☠️ Eliminated ${enemy.name}!`
+      : `Defeated ${enemy.name}`)
     advanceRoom(store)
   }
 }
@@ -189,10 +212,12 @@ function processResourceRoom(store: GameStore, room: import('@/types').Room): vo
   }
 
   const scavengingBonus = getSkillBonus(runner.skills.scavenging)
+  const scavMasteryBonus = getMasteryBonus(runner.skills.scavenging)
+  const prestigeResourceMult = 1 + store.prestigeLevel * 0.10
   const collected: Partial<Record<string, number>> = {}
   
   for (const [resource, amount] of Object.entries(room.resources)) {
-    const bonus = Math.floor((amount as number) * scavengingBonus)
+    const bonus = Math.floor((amount as number) * scavengingBonus * scavMasteryBonus * prestigeResourceMult)
     collected[resource] = bonus
   }
 
@@ -213,7 +238,8 @@ function processLootRoom(store: GameStore, room: import('@/types').Room): void {
   if (!activeRun) return
 
   if (room.isLocked) {
-    const hackChance = 50 + runner.skills.hacking.level * 3
+    const hackMasteryBonus = runner.skills.hacking.masteryLevel * 5
+    const hackChance = 50 + runner.skills.hacking.level * 3 + hackMasteryBonus
     if (Math.random() * 100 > hackChance) {
       store.addLog('warning', `Failed to hack ${room.name}, moving on...`)
       advanceRoom(store)
@@ -376,6 +402,48 @@ function calculateExtractionChance(combatLevel: number, roomsCleared: number): n
   const penalty = roomsCleared * 0.03
   const bonus = combatLevel * 0.01
   return Math.max(0.3, Math.min(0.99, base - penalty + bonus))
+}
+
+function generateBossLoot(runnerLevel: number): import('@/types').Equipment {
+  const slot = ALL_SLOTS[Math.floor(Math.random() * ALL_SLOTS.length)]
+  // Bosses drop uncommon or rare (no common)
+  const rarities: import('@/types').ItemRarity[] = ['uncommon', 'rare']
+  const rarityWeights = [65, 35]
+  const rarityRoll = Math.random() * 100
+  let rarityIndex = 0
+  let cumulative = 0
+  for (let i = 0; i < rarityWeights.length; i++) {
+    cumulative += rarityWeights[i]
+    if (rarityRoll < cumulative) { rarityIndex = i; break }
+  }
+  const rarity = rarities[rarityIndex]
+  const baseValue = rarityIndex * 3 + runnerLevel + 3
+
+  // Reuse the same slot-specific stat logic with elevated baseValue
+  const equipment = generateEquipmentLoot(runnerLevel)
+  if (!equipment) {
+    // Fallback — directly build a simple item
+    return {
+      id: `boss-equip-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      name: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Boss Trophy`,
+      slot,
+      rarity,
+      damage: slot === 'weapon1' || slot === 'weapon2' ? 10 + baseValue : undefined,
+      armor: 5 + rarityIndex * 3,
+      description: 'Salvaged from a defeated boss enemy.',
+    }
+  }
+  // Override rarity and boost stats
+  return {
+    ...equipment,
+    id: `boss-equip-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    rarity,
+    name: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} ${equipment.name.split(' ').slice(1).join(' ')}`,
+    damage:      equipment.damage      ? equipment.damage      + rarityIndex * 3 + 3 : equipment.damage,
+    armor:       equipment.armor       ? equipment.armor       + rarityIndex * 2 + 2 : equipment.armor,
+    shield:      equipment.shield      ? equipment.shield      + rarityIndex * 5 + 5 : equipment.shield,
+    healthBonus: equipment.healthBonus ? equipment.healthBonus + rarityIndex * 5 + 5 : equipment.healthBonus,
+  }
 }
 
 function generateEquipmentLoot(runnerLevel: number): import('@/types').Equipment | null {

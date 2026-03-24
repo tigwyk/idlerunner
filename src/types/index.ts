@@ -133,6 +133,8 @@ export interface Enemy {
   xpReward: number;
   lootTable: LootEntry[];
   activeEffects: StatusEffect[];
+  /** Set to true when boss enrages at ≤50% HP (damage doubled) */
+  enraged?: boolean;
 }
 
 export interface LootEntry {
@@ -207,6 +209,8 @@ export interface GameState {
   runsCompleted: number;
   runsFailed: number;
   log: LogEntry[];
+  prestigeLevel: number;
+  prestigeTokens: number;
 }
 
 export interface LogEntry {

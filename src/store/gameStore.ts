@@ -41,6 +41,7 @@ export interface GameStore extends GameState {
   addSkillXp: (skill: SkillType, amount: number) => void
   completeRun: (success: boolean) => void
   updateActiveRun: (updates: Partial<ActiveRun>) => void
+  prestigeGame: () => boolean
 }
 
 const initialState: GameState = {
@@ -60,6 +61,8 @@ const initialState: GameState = {
   runsCompleted: 0,
   runsFailed: 0,
   log: [],
+  prestigeLevel: 0,
+  prestigeTokens: 0,
 }
 
 export const useGameStore = create<GameStore>()(
@@ -359,16 +362,50 @@ export const useGameStore = create<GameStore>()(
           ? { ...state.activeRun, ...updates }
           : null,
       })),
+
+      prestigeGame: () => {
+        const state = get()
+        const PRESTIGE_MIN_LEVEL = 50
+        const PRESTIGE_MIN_RUNS = 10
+        if (state.runner.level < PRESTIGE_MIN_LEVEL || state.runsCompleted < PRESTIGE_MIN_RUNS) {
+          return false
+        }
+        // Reset economy to local defaults (server will be updated on next auth sync)
+        useEconomyStore.setState({
+          resources: { credits: 100, metals: 0, electronics: 0, data: 0 },
+          statUpgrades: {},
+          isSynced: false,
+        })
+        set((s) => ({
+          ...initialState,
+          runner: createInitialRunner(),
+          // Preserve run history and prestige progression
+          runsCompleted: s.runsCompleted,
+          runsFailed: s.runsFailed,
+          prestigeLevel: s.prestigeLevel + 1,
+          prestigeTokens: s.prestigeTokens + 1,
+          currentScreen: 'overview' as GameScreen,
+          lastTick: Date.now(),
+          lastSave: Date.now(),
+        }))
+        get().addLog('success', `⭐ Prestige ${get().prestigeLevel} achieved! Bonuses: +${get().prestigeLevel * 15}% XP, +${get().prestigeLevel * 10}% resources.`)
+        return true
+      },
     }),
     {
       name: 'marathon-idle-save',
-      version: 4,
+      version: 5,
       migrate(persistedState: unknown, version: number) {
         const state = persistedState as GameState & { runner?: { activeEffects?: unknown[] } }
         if (version < 3 && state.runner) {
           state.runner.activeEffects = state.runner.activeEffects ?? []
         }
-        // v4: resources are now server-authoritative via economyStore; drop them from persist
+        // v4: resources are now server-authoritative via economyStore
+        // v5: add prestige fields with defaults
+        if (version < 5) {
+          (state as GameState).prestigeLevel  = (state as GameState).prestigeLevel  ?? 0
+          ;(state as GameState).prestigeTokens = (state as GameState).prestigeTokens ?? 0
+        }
         return state as unknown as GameStore
       },
       partialize: (state) => {

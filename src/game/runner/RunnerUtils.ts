@@ -55,11 +55,19 @@ export function calculateXpToLevel(level: number): number {
   return Math.floor(100 * Math.pow(1.15, level - 1))
 }
 
+/** XP threshold to advance from masteryLevel → masteryLevel+1 */
+export function getMasteryXpThreshold(masteryLevel: number): number {
+  return 500 * (masteryLevel + 1)
+}
+
+const MAX_MASTERY_LEVEL = 10
+
 export function addSkillXp(skill: Skill, amount: number): Skill {
   let newXp = skill.xp + amount
   let newLevel = skill.level
   let xpToNext = skill.xpToNext
   let masteryXp = skill.masteryXp
+  let masteryLevel = skill.masteryLevel
 
   while (newXp >= xpToNext && newLevel < 99) {
     newXp -= xpToNext
@@ -71,12 +79,24 @@ export function addSkillXp(skill: Skill, amount: number): Skill {
     }
   }
 
+  // Promote masteryLevel when enough masteryXp has accumulated
+  while (masteryLevel < MAX_MASTERY_LEVEL) {
+    const threshold = getMasteryXpThreshold(masteryLevel)
+    if (masteryXp >= threshold) {
+      masteryXp -= threshold
+      masteryLevel++
+    } else {
+      break
+    }
+  }
+
   return {
     ...skill,
     xp: newXp,
     level: newLevel,
     xpToNext,
     masteryXp,
+    masteryLevel,
   }
 }
 

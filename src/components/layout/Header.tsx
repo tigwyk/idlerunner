@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
 
 export default function Header() {
-  const { runner, activeRun } = useGameStore()
+  const { runner, activeRun, prestigeLevel } = useGameStore()
   const resources = useEconomyStore((state) => state.resources)
   const authStatus = useAuthStore((state) => state.status)
   const multiplayerStatus = useMultiplayerStore((state) => state.backendHealth?.status ?? 'offline')
@@ -20,10 +20,15 @@ export default function Header() {
         </div>
         
         <div className="flex items-center gap-6">
-          <div className="text-xs font-caption">
+          <div className="text-xs font-caption flex items-center gap-1">
             <span className="text-text-muted">Runner: </span>
             <span className="text-text-primary">{runner.name}</span>
-            <span className="text-accent-lime ml-2">LV.{runner.level}</span>
+            <span className="text-accent-lime ml-1">LV.{runner.level}</span>
+            {prestigeLevel > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded text-2xs bg-accent-yellow/20 text-accent-yellow font-bold leading-none">
+                P{prestigeLevel}
+              </span>
+            )}
           </div>
           
           <div className="flex items-center gap-4 text-xs font-mono">

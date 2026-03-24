@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { STAT_NAMES } from '@/game/config'
 import { useGameStore } from '@/store/gameStore'
 import { calculateTotalStats, calculateDamage, calculateAccuracy, calculateEvasion, calculateArmor, calculateHealth, calculateShield, calculateCritChance, calculateCritDamage } from '@/game/runner/RunnerUtils'
@@ -5,9 +6,11 @@ import { SLOT_INFO, SLOTS_BY_CATEGORY } from '@/types'
 import type { SlotCategory } from '@/types'
 
 export default function RunnerScreen() {
-  const { runner } = useGameStore()
+  const { runner, runsCompleted, prestigeLevel, prestigeTokens } = useGameStore()
   const stats = calculateTotalStats(runner)
   const maxHealth = calculateHealth(runner)
+  
+  const canPrestige = runner.level >= 50 && runsCompleted >= 10
 
   return (
     <div className="space-y-6">
@@ -63,6 +66,14 @@ export default function RunnerScreen() {
 
         <EquipmentDisplay />
       </div>
+
+      <PrestigeSection
+        prestigeLevel={prestigeLevel}
+        prestigeTokens={prestigeTokens}
+        runnerLevel={runner.level}
+        runsCompleted={runsCompleted}
+        canPrestige={canPrestige}
+      />
     </div>
   )
 
@@ -170,6 +181,107 @@ function EquipmentDisplay() {
             ))}
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+function PrestigeSection({
+  prestigeLevel,
+  prestigeTokens,
+  runnerLevel,
+  runsCompleted,
+  canPrestige,
+}: {
+  prestigeLevel: number
+  prestigeTokens: number
+  runnerLevel: number
+  runsCompleted: number
+  canPrestige: boolean
+}) {
+  const [confirming, setConfirming] = useState(false)
+  const { prestigeGame } = useGameStore()
+
+  function handlePrestige() {
+    if (prestigeGame()) setConfirming(false)
+  }
+
+  const xpBonus  = (prestigeLevel + 1) * 15
+  const resBonus = (prestigeLevel + 1) * 10
+
+  return (
+    <div className="card border border-accent-yellow/10">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-medium text-gray-300">Prestige</h3>
+        {prestigeLevel > 0 && (
+          <span className="px-2 py-0.5 rounded text-xs bg-accent-yellow/20 text-accent-yellow font-bold">
+            P{prestigeLevel} · {prestigeTokens} token{prestigeTokens !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {prestigeLevel > 0 && (
+        <div className="text-xs text-gray-500 mb-3 space-y-1">
+          <div className="flex justify-between">
+            <span>XP gain bonus</span>
+            <span className="text-primary-400">+{prestigeLevel * 15}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Resource bonus</span>
+            <span className="text-primary-400">+{prestigeLevel * 10}%</span>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-gray-600 space-y-1 mb-4">
+        <div className="flex justify-between">
+          <span>Level requirement</span>
+          <span className={runnerLevel >= 50 ? 'text-accent-green' : 'text-gray-500'}>
+            {runnerLevel} / 50
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Runs required</span>
+          <span className={runsCompleted >= 10 ? 'text-accent-green' : 'text-gray-500'}>
+            {runsCompleted} / 10
+          </span>
+        </div>
+      </div>
+
+      {canPrestige ? (
+        confirming ? (
+          <div className="space-y-2">
+            <p className="text-xs text-warning-400">
+              ⚠️ Resets runner, skills, and inventory. Keeps run history.
+              Next prestige grants +{xpBonus}% XP and +{resBonus}% resources.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrestige}
+                className="flex-1 py-1.5 rounded text-sm font-medium bg-accent-yellow/20 text-accent-yellow border border-accent-yellow/40 hover:bg-accent-yellow/30"
+              >
+                Confirm Prestige
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-4 py-1.5 rounded text-sm text-gray-500 hover:text-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            className="w-full py-1.5 rounded text-sm font-medium bg-accent-yellow/20 text-accent-yellow border border-accent-yellow/40 hover:bg-accent-yellow/30"
+          >
+            ⭐ Prestige {prestigeLevel > 0 ? `(×${prestigeLevel + 1})` : ''}
+          </button>
+        )
+      ) : (
+        <p className="text-xs text-gray-600 text-center">
+          Reach level 50 and complete 10 runs to unlock Prestige.
+        </p>
       )}
     </div>
   )

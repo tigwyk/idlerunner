@@ -5,7 +5,7 @@ import ActiveRunPanel from '../run/ActiveRunPanel'
 import StatsPanel from '../runner/StatsPanel'
 
 export default function OverviewScreen() {
-  const { runner, activeRun, runsCompleted, runsFailed, setCurrentScreen } = useGameStore()
+  const { runner, activeRun, runsCompleted, runsFailed, prestigeLevel, setCurrentScreen } = useGameStore()
   const resources = useEconomyStore((state) => state.resources)
 
   if (activeRun) {
@@ -52,6 +52,21 @@ export default function OverviewScreen() {
               : 0}%`} />
             <StatItem label="Runner Level" value={runner.level} />
           </div>
+          {prestigeLevel > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-800 text-xs space-y-1">
+              <div className="flex items-center gap-2 text-accent-yellow font-medium">
+                <span>⭐ Prestige {prestigeLevel}</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>XP gain</span>
+                <span className="text-primary-400">+{prestigeLevel * 15}%</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>Resources</span>
+                <span className="text-primary-400">+{prestigeLevel * 10}%</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

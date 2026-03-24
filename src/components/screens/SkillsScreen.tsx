@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store/gameStore'
 import { SKILL_NAMES } from '@/game/config'
+import { getMasteryXpThreshold } from '@/game/runner/RunnerUtils'
 import type { SkillType } from '@/types'
 
 export default function SkillsScreen() {
@@ -24,18 +25,18 @@ export default function SkillsScreen() {
         <div className="space-y-4">
           <SkillEffect 
             name="Scavenging"
-            description="Increases resource collection from all sources."
-            formula="+5% per level"
+            description="Increases resource collection from all sources. Mastery multiplies yields further."
+            formula="+5% per level · Mastery +10%/lvl resources"
           />
           <SkillEffect 
             name="Combat"
-            description="Increases damage and accuracy in combat encounters."
-            formula="+5% damage, +2% accuracy per level"
+            description="Increases damage and accuracy in combat encounters. Mastery amplifies all damage."
+            formula="+5% damage, +2% accuracy · Mastery +10%/lvl damage"
           />
           <SkillEffect 
             name="Hacking"
-            description="Increases success rate for hacking locked doors and containers."
-            formula="+3% hack chance per level"
+            description="Increases success rate for hacking locked doors. Mastery adds flat hack chance."
+            formula="+3% hack chance per level · Mastery +5/lvl hack chance"
           />
         </div>
       </div>
@@ -45,6 +46,9 @@ export default function SkillsScreen() {
 
 function SkillCard({ skillType, skill }: { skillType: SkillType; skill: import('@/types').Skill }) {
   const xpPercent = (skill.xp / skill.xpToNext) * 100
+  const masteryThreshold = getMasteryXpThreshold(skill.masteryLevel)
+  const masteryPercent = skill.masteryLevel >= 10 ? 100 : (skill.masteryXp / masteryThreshold) * 100
+  const masteryBonus = Math.round(skill.masteryLevel * 10)
 
   return (
     <div className="card">
@@ -53,10 +57,12 @@ function SkillCard({ skillType, skill }: { skillType: SkillType; skill: import('
           <h3 className="font-medium text-gray-200">{SKILL_NAMES[skillType]}</h3>
           <p className="text-xs text-gray-500">Level {skill.level}</p>
         </div>
-        {skill.masteryLevel > 0 && (
+        {skill.masteryLevel > 0 ? (
           <span className="px-2 py-0.5 rounded text-xs bg-primary-900 text-primary-300">
-            Mastery {skill.masteryLevel}
+            Mastery {skill.masteryLevel} (+{masteryBonus}%)
           </span>
+        ) : (
+          <span className="text-xs text-gray-600">Mastery 0</span>
         )}
       </div>
 
@@ -75,11 +81,34 @@ function SkillCard({ skillType, skill }: { skillType: SkillType; skill: import('
         </div>
       </div>
 
+      {skill.masteryLevel < 10 && (
+        <div className="mb-3">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-gray-600">Mastery XP</span>
+            <span className="text-gray-600">
+              {skill.masteryXp} / {masteryThreshold}
+            </span>
+          </div>
+          <div className="stat-bar">
+            <div
+              className="stat-bar-fill bg-primary-800"
+              style={{ width: `${masteryPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="text-sm">
         <div className="flex justify-between">
           <span className="text-gray-500">Current Bonus</span>
           <span className="text-success-400">+{calculateBonus(skillType, skill.level)}%</span>
         </div>
+        {skill.masteryLevel > 0 && (
+          <div className="flex justify-between mt-1">
+            <span className="text-gray-600">Mastery Bonus</span>
+            <span className="text-primary-400">+{masteryBonus}% {getMasteryLabel(skillType)}</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-3 pt-3 border-t border-gray-800 text-xs text-gray-500">
@@ -99,6 +128,15 @@ function SkillEffect({ name, description, formula }: { name: string; description
       <p className="text-sm text-gray-500 mt-1">{description}</p>
     </div>
   )
+}
+
+function getMasteryLabel(skillType: SkillType): string {
+  switch (skillType) {
+    case 'combat': return 'damage'
+    case 'scavenging': return 'resources'
+    case 'hacking': return 'hack chance'
+    default: return ''
+  }
 }
 
 function calculateBonus(skillType: SkillType, level: number): number {

@@ -34,6 +34,19 @@ const ENEMY_TEMPLATES: Record<SectorType, Partial<Record<string, Omit<Enemy, 'he
         { type: 'resource', resourceType: 'metals', minAmount: 8, maxAmount: 20, weight: 50 },
       ],
     },
+    boss: {
+      type: 'boss',
+      name: 'Security Chief',
+      damage: 20,
+      armor: 15,
+      evasion: 5,
+      xpReward: 150,
+      lootTable: [
+        { type: 'resource', resourceType: 'credits', minAmount: 80, maxAmount: 150, weight: 50 },
+        { type: 'resource', resourceType: 'metals', minAmount: 20, maxAmount: 40, weight: 30 },
+        { type: 'resource', resourceType: 'electronics', minAmount: 5, maxAmount: 15, weight: 20 },
+      ],
+    },
   },
   industrial: {
     drone: {
@@ -70,6 +83,19 @@ const ENEMY_TEMPLATES: Record<SectorType, Partial<Record<string, Omit<Enemy, 'he
       lootTable: [
         { type: 'resource', resourceType: 'credits', minAmount: 30, maxAmount: 60, weight: 50 },
         { type: 'resource', resourceType: 'electronics', minAmount: 5, maxAmount: 15, weight: 50 },
+      ],
+    },
+    boss: {
+      type: 'boss',
+      name: 'Mech Sentinel',
+      damage: 28,
+      armor: 20,
+      evasion: 3,
+      xpReward: 180,
+      lootTable: [
+        { type: 'resource', resourceType: 'metals', minAmount: 30, maxAmount: 60, weight: 40 },
+        { type: 'resource', resourceType: 'electronics', minAmount: 15, maxAmount: 30, weight: 35 },
+        { type: 'resource', resourceType: 'credits', minAmount: 60, maxAmount: 120, weight: 25 },
       ],
     },
   },
@@ -109,6 +135,7 @@ const SECTOR_CONFIG: Record<SectorType, {
   roomCount: number
   maxExtractionTime: number
   nodeDistribution: Record<NodeType, number>
+  bossHealth: number
 }> = {
   residential: {
     name: 'Residential Deck',
@@ -116,12 +143,13 @@ const SECTOR_CONFIG: Record<SectorType, {
     difficulty: 1,
     roomCount: 5,
     maxExtractionTime: 120,
+    bossHealth: 120,
     nodeDistribution: {
-      resource: 35,
+      resource: 30,
       combat: 25,
       loot: 30,
       hazard: 5,
-      extraction: 5,
+      extraction: 10,
     },
   },
   industrial: {
@@ -130,12 +158,13 @@ const SECTOR_CONFIG: Record<SectorType, {
     difficulty: 2,
     roomCount: 7,
     maxExtractionTime: 180,
+    bossHealth: 180,
     nodeDistribution: {
-      resource: 25,
+      resource: 20,
       combat: 30,
       loot: 30,
       hazard: 10,
-      extraction: 5,
+      extraction: 10,
     },
   },
   research: {
@@ -144,12 +173,13 @@ const SECTOR_CONFIG: Record<SectorType, {
     difficulty: 3,
     roomCount: 8,
     maxExtractionTime: 240,
+    bossHealth: 150,
     nodeDistribution: {
-      resource: 20,
+      resource: 15,
       combat: 25,
       loot: 35,
       hazard: 15,
-      extraction: 5,
+      extraction: 10,
     },
   },
 }
@@ -166,9 +196,19 @@ function getRandomNodeType(distribution: Record<NodeType, number>): NodeType {
   return 'resource'
 }
 
-function generateEnemy(sectorType: SectorType, difficulty: number): Enemy | undefined {
+function generateEnemy(sectorType: SectorType, difficulty: number, isBoss = false): Enemy | undefined {
   const templates = ENEMY_TEMPLATES[sectorType]
-  const enemyTypes = Object.keys(templates) as string[]
+  const config = SECTOR_CONFIG[sectorType]
+  
+  if (isBoss) {
+    const bossTemplate = templates['boss']
+    if (!bossTemplate) return undefined
+    const health = Math.floor(config.bossHealth * (1 + difficulty * 0.2))
+    return { ...bossTemplate, health, maxHealth: health, activeEffects: [] } as Enemy
+  }
+
+  // Regular enemy generation — exclude boss from random pool
+  const enemyTypes = (Object.keys(templates) as string[]).filter(t => t !== 'boss')
   
   if (enemyTypes.length === 0) return undefined
   if (Math.random() > 0.6) return undefined
@@ -178,7 +218,7 @@ function generateEnemy(sectorType: SectorType, difficulty: number): Enemy | unde
   
   if (!template) return undefined
   
-  const baseHealth = enemyType === 'boss' ? 150 : enemyType === 'security' ? 80 : 50
+  const baseHealth = enemyType === 'security' ? 80 : 50
   const health = Math.floor(baseHealth * (1 + difficulty * 0.2))
   
   return {
@@ -225,6 +265,9 @@ export function generateSector(sectorType: SectorType): Sector {
   const rooms: Room[] = []
   let extractionRoom = -1
   
+  // Guarantee one boss room — place it second-to-last before extraction
+  const bossRoomIndex = config.roomCount - 2
+
   for (let i = 0; i < config.roomCount; i++) {
     let nodeType: NodeType
     
@@ -233,6 +276,8 @@ export function generateSector(sectorType: SectorType): Sector {
     } else if (i === config.roomCount - 1) {
       nodeType = 'extraction'
       extractionRoom = i
+    } else if (i === bossRoomIndex) {
+      nodeType = 'combat'
     } else {
       nodeType = getRandomNodeType(config.nodeDistribution)
     }
@@ -250,7 +295,11 @@ export function generateSector(sectorType: SectorType): Sector {
     }
     
     if (nodeType === 'combat') {
-      room.enemy = generateEnemy(sectorType, config.difficulty)
+      const isBoss = i === bossRoomIndex
+      room.enemy = generateEnemy(sectorType, config.difficulty, isBoss)
+      if (isBoss) {
+        room.name = `[BOSS] ${room.enemy?.name ?? 'Boss Encounter'}`
+      }
     } else if (nodeType === 'resource') {
       room.resources = generateRoomResources(sectorType)
     }
