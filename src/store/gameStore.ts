@@ -23,6 +23,8 @@ import { processTick } from '@/game/engine/GameLoop'
 import { calculateOfflineProgress } from '@/game/engine/OfflineCalculator'
 import { getKitEquipment } from '@/game/data/kits'
 import { useEconomyStore } from '@/store/economyStore'
+import { ACHIEVEMENTS, type AchievementCounters } from '@/game/data/achievements'
+import { notify } from '@/store/notificationStore'
 
 export interface GameStore extends GameState {
   setCurrentScreen: (screen: GameScreen) => void
@@ -42,6 +44,9 @@ export interface GameStore extends GameState {
   completeRun: (success: boolean) => void
   updateActiveRun: (updates: Partial<ActiveRun>) => void
   prestigeGame: () => boolean
+  checkAchievements: () => void
+  incrementBossesKilled: () => void
+  incrementEnemiesKilled: (count: number) => void
 }
 
 const initialState: GameState = {
@@ -63,6 +68,9 @@ const initialState: GameState = {
   log: [],
   prestigeLevel: 0,
   prestigeTokens: 0,
+  unlockedAchievements: [],
+  bossesKilled: 0,
+  totalEnemiesKilled: 0,
 }
 
 export const useGameStore = create<GameStore>()(
@@ -256,11 +264,16 @@ export const useGameStore = create<GameStore>()(
         let newXp = state.runner.xp + amount
         let newLevel = state.runner.level
         let xpToNext = state.runner.xpToNext
+        const oldLevel = state.runner.level
 
         while (newXp >= xpToNext && newLevel < 50) {
           newXp -= xpToNext
           newLevel++
           xpToNext = calculateXpToLevel(newLevel)
+        }
+
+        if (newLevel > oldLevel) {
+          notify.success(`Level Up! → ${newLevel}`, 'Runner stats improved.')
         }
 
         return {
@@ -328,6 +341,8 @@ export const useGameStore = create<GameStore>()(
             ? `Extraction successful! ${run.currentRoom} rooms cleared. Kit items kept.`
             : `Extraction successful! ${run.currentRoom} rooms cleared.`
           get().addLog('success', lootMsg)
+          notify.success('Extraction Complete', `${run.currentRoom} rooms cleared.`)
+          get().checkAchievements()
         } else {
           const lostGearIds = run.customGearAtRisk.map(e => e.id)
           const newInventory = state.inventory.filter(
@@ -354,6 +369,7 @@ export const useGameStore = create<GameStore>()(
             ? 'Extraction failed. Lost all loot and kit. Get a new kit from a vendor.'
             : 'Extraction failed. Lost all loot and equipped gear.'
           get().addLog('danger', failMsg)
+          notify.error('Extraction Failed', run.loadoutType === 'kit' ? 'Lost all loot and kit.' : 'Lost all loot and gear.')
         }
       },
 
@@ -362,6 +378,38 @@ export const useGameStore = create<GameStore>()(
           ? { ...state.activeRun, ...updates }
           : null,
       })),
+
+      checkAchievements: () => {
+        const state = get()
+        const counters: AchievementCounters = {
+          bossesKilled: state.bossesKilled,
+          totalEnemiesKilled: state.totalEnemiesKilled,
+        }
+        const fullState = { ...state, ...counters }
+        const newlyUnlocked: string[] = []
+        for (const achievement of ACHIEVEMENTS) {
+          if (!state.unlockedAchievements.includes(achievement.id) && achievement.check(fullState)) {
+            newlyUnlocked.push(achievement.id)
+          }
+        }
+        if (newlyUnlocked.length > 0) {
+          set((s) => ({ unlockedAchievements: [...s.unlockedAchievements, ...newlyUnlocked] }))
+          for (const id of newlyUnlocked) {
+            const a = ACHIEVEMENTS.find((x) => x.id === id)!
+            notify.achievement(`${a.icon} ${a.title}`, a.description)
+          }
+        }
+      },
+
+      incrementBossesKilled: () => {
+        set((s) => ({ bossesKilled: s.bossesKilled + 1 }))
+        get().checkAchievements()
+      },
+
+      incrementEnemiesKilled: (count) => {
+        set((s) => ({ totalEnemiesKilled: s.totalEnemiesKilled + count }))
+        // Achievement check handled by completeRun to avoid per-tick overhead
+      },
 
       prestigeGame: () => {
         const state = get()
@@ -389,22 +437,27 @@ export const useGameStore = create<GameStore>()(
           lastSave: Date.now(),
         }))
         get().addLog('success', `⭐ Prestige ${get().prestigeLevel} achieved! Bonuses: +${get().prestigeLevel * 15}% XP, +${get().prestigeLevel * 10}% resources.`)
+        notify.achievement(`Prestige ${get().prestigeLevel} Achieved!`, `+${get().prestigeLevel * 15}% XP, +${get().prestigeLevel * 10}% resources.`)
+        get().checkAchievements()
         return true
       },
     }),
     {
       name: 'marathon-idle-save',
-      version: 5,
+      version: 6,
       migrate(persistedState: unknown, version: number) {
         const state = persistedState as GameState & { runner?: { activeEffects?: unknown[] } }
         if (version < 3 && state.runner) {
           state.runner.activeEffects = state.runner.activeEffects ?? []
         }
-        // v4: resources are now server-authoritative via economyStore
-        // v5: add prestige fields with defaults
         if (version < 5) {
           (state as GameState).prestigeLevel  = (state as GameState).prestigeLevel  ?? 0
           ;(state as GameState).prestigeTokens = (state as GameState).prestigeTokens ?? 0
+        }
+        if (version < 6) {
+          (state as GameState).unlockedAchievements = (state as GameState).unlockedAchievements ?? []
+          ;(state as GameState).bossesKilled        = (state as GameState).bossesKilled        ?? 0
+          ;(state as GameState).totalEnemiesKilled  = (state as GameState).totalEnemiesKilled  ?? 0
         }
         return state as unknown as GameStore
       },

@@ -89,6 +89,15 @@ export default {
       borderWidth: {
         '0.5': '0.5px',
       },
+      keyframes: {
+        'slide-in': {
+          from: { opacity: '0', transform: 'translateX(2rem)' },
+          to:   { opacity: '1', transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'slide-in': 'slide-in 0.2s ease-out',
+      },
       boxShadow: {
         'inset-dark': '0 0 0 30px rgb(25, 25, 27) inset',
       },

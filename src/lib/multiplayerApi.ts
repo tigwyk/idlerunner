@@ -158,3 +158,44 @@ export function purchaseUpgrade(stat: string): Promise<EconomyUpgradeResponse> {
     economyUpgradeResponseSchema
   )
 }
+
+import { z } from 'zod/v4'
+
+const updateProfileResponseSchema = z.object({ ok: z.boolean(), runnerName: z.string().optional(), message: z.string() })
+export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>
+
+export function updateRunnerName(runnerName: string): Promise<UpdateProfileResponse> {
+  return sendJson(
+    '/api/profile',
+    { method: 'PATCH', body: JSON.stringify({ runnerName }) },
+    updateProfileResponseSchema
+  )
+}
+
+const friendResponseSchema = z.object({ ok: z.boolean(), message: z.string() })
+const friendEntrySchema = z.object({
+  id: z.string(),
+  runnerName: z.string(),
+  mmr: z.number(),
+  status: z.enum(['pending', 'accepted']),
+  direction: z.enum(['sent', 'received']),
+})
+const friendsListSchema = z.object({ friends: z.array(friendEntrySchema) })
+export type FriendEntry = z.infer<typeof friendEntrySchema>
+export type FriendResponse = z.infer<typeof friendResponseSchema>
+
+export function getFriends(): Promise<{ friends: FriendEntry[] }> {
+  return getJson('/api/friends', friendsListSchema)
+}
+
+export function sendFriendRequest(runnerName: string): Promise<FriendResponse> {
+  return sendJson('/api/friends/request', { method: 'POST', body: JSON.stringify({ runnerName }) }, friendResponseSchema)
+}
+
+export function acceptFriend(friendshipId: string): Promise<FriendResponse> {
+  return sendJson(`/api/friends/accept/${friendshipId}`, { method: 'POST' }, friendResponseSchema)
+}
+
+export function removeFriend(friendId: string): Promise<FriendResponse> {
+  return sendJson(`/api/friends/${friendId}`, { method: 'DELETE' }, friendResponseSchema)
+}

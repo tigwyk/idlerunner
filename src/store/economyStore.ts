@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import type { EconomyStateResponse, ResourcesState } from '@shared'
 import type { StatType } from '@/types'
 import { fetchEconomy, syncRunEarnings, purchaseUpgrade } from '@/lib/multiplayerApi'
+import { notify } from '@/store/notificationStore'
 
 export interface EconomyStore {
   resources: ResourcesState
@@ -83,6 +84,7 @@ export const useEconomyStore = create<EconomyStore>((set, get) => ({
           statUpgrades: result.economy.statUpgrades as Partial<Record<string, number>>,
           isLoading: false,
         })
+        notify.success('Upgrade Purchased', result.message)
         return { ok: true, message: result.message }
       } else {
         set({ isLoading: false })

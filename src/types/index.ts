@@ -211,6 +211,9 @@ export interface GameState {
   log: LogEntry[];
   prestigeLevel: number;
   prestigeTokens: number;
+  unlockedAchievements: string[];
+  bossesKilled: number;
+  totalEnemiesKilled: number;
 }
 
 export interface LogEntry {

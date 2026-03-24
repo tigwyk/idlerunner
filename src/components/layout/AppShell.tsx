@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import Header from './Header'
 import Navigation from './Navigation'
+import ToastStack from './ToastStack'
 import OverviewScreen from '@/components/screens/OverviewScreen'
 import DeploymentScreen from '@/components/screens/DeploymentScreen'
 import MultiplayerScreen from '@/components/screens/MultiplayerScreen'
@@ -86,6 +87,7 @@ export default function AppShell() {
         )}
         {renderScreen()}
       </main>
+      <ToastStack />
     </div>
   )
 }

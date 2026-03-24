@@ -118,6 +118,7 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
     store.updateActiveRun(equipmentUpdate)
     
     store.addLog('combat', `Defeated ${enemy.name}`)
+    store.incrementEnemiesKilled(1)
     advanceRoom(store)
     return
   }
@@ -197,9 +198,10 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
     
     store.updateActiveRun(equipmentUpdate)
     
-    store.addLog('combat', enemy.type === 'boss'
-      ? `☠️ Eliminated ${enemy.name}!`
-      : `Defeated ${enemy.name}`)
+    const isBoss = enemy.type === 'boss'
+    store.addLog('combat', isBoss ? `☠️ Eliminated ${enemy.name}!` : `Defeated ${enemy.name}`)
+    store.incrementEnemiesKilled(1)
+    if (isBoss) store.incrementBossesKilled()
     advanceRoom(store)
   }
 }

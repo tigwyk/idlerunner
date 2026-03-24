@@ -4,9 +4,10 @@ import { useGameStore } from '@/store/gameStore'
 import { calculateTotalStats, calculateDamage, calculateAccuracy, calculateEvasion, calculateArmor, calculateHealth, calculateShield, calculateCritChance, calculateCritDamage } from '@/game/runner/RunnerUtils'
 import { SLOT_INFO, SLOTS_BY_CATEGORY } from '@/types'
 import type { SlotCategory } from '@/types'
+import { ACHIEVEMENTS } from '@/game/data/achievements'
 
 export default function RunnerScreen() {
-  const { runner, runsCompleted, prestigeLevel, prestigeTokens } = useGameStore()
+  const { runner, runsCompleted, prestigeLevel, prestigeTokens, unlockedAchievements } = useGameStore()
   const stats = calculateTotalStats(runner)
   const maxHealth = calculateHealth(runner)
   
@@ -74,6 +75,8 @@ export default function RunnerScreen() {
         runsCompleted={runsCompleted}
         canPrestige={canPrestige}
       />
+
+      <AchievementGrid unlockedAchievements={unlockedAchievements} />
     </div>
   )
 
@@ -283,6 +286,37 @@ function PrestigeSection({
           Reach level 50 and complete 10 runs to unlock Prestige.
         </p>
       )}
+    </div>
+  )
+}
+
+function AchievementGrid({ unlockedAchievements }: { unlockedAchievements: string[] }) {
+  const unlocked = new Set(unlockedAchievements)
+  const count = unlocked.size
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-medium text-gray-300">Achievements</h3>
+        <span className="text-xs text-gray-500">{count} / {ACHIEVEMENTS.length}</span>
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+        {ACHIEVEMENTS.map((a) => {
+          const earned = unlocked.has(a.id)
+          return (
+            <div
+              key={a.id}
+              title={earned ? `${a.title}: ${a.description}` : `??? (locked)`}
+              className={`flex flex-col items-center gap-1 p-2 rounded border text-center cursor-default transition-colors
+                ${earned
+                  ? 'border-accent-yellow/40 bg-yellow-950/20 text-gray-200'
+                  : 'border-gray-800 bg-surface text-gray-700 grayscale'}`}
+            >
+              <span className="text-xl leading-none">{a.icon}</span>
+              <span className="text-2xs leading-tight">{earned ? a.title : '???'}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
