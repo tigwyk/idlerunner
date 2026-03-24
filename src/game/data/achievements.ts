@@ -100,6 +100,20 @@ export const ACHIEVEMENTS: Achievement[] = [
     icon: '🎒',
     check: (s) => s.inventory.length >= 20,
   },
+  {
+    id: 'first_challenge',
+    title: 'Daily Grind',
+    description: 'Complete your first daily challenge.',
+    icon: '📅',
+    check: (s) => s.dailyChallengesCompleted >= 1,
+  },
+  {
+    id: 'dedicated_runner',
+    title: 'Dedicated Runner',
+    description: 'Complete 7 daily challenges.',
+    icon: '🔥',
+    check: (s) => s.dailyChallengesCompleted >= 7,
+  },
 ]
 
 export const ACHIEVEMENT_MAP = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]))

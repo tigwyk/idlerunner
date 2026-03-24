@@ -9,7 +9,8 @@ import type {
   SkillType,
   GameScreen,
   LoadoutType,
-  AllEquipmentSlot
+  AllEquipmentSlot,
+  RunModifier,
 } from '@/types'
 import { 
   createInitialRunner, 
@@ -26,9 +27,19 @@ import { useEconomyStore } from '@/store/economyStore'
 import { ACHIEVEMENTS, type AchievementCounters } from '@/game/data/achievements'
 import { notify } from '@/store/notificationStore'
 
+// Lazy import to avoid circular dependency — challengeStore depends on multiplayerApi, not gameStore
+let _getChallengeStore: (() => import('@/store/challengeStore').ChallengeStore) | null = null
+async function getChallengeStore() {
+  if (!_getChallengeStore) {
+    const mod = await import('@/store/challengeStore')
+    _getChallengeStore = mod.useChallengeStore.getState
+  }
+  return _getChallengeStore()
+}
+
 export interface GameStore extends GameState {
   setCurrentScreen: (screen: GameScreen) => void
-  startRun: (sectorType: ActiveRun['sector'], loadoutType: LoadoutType, kitId?: string) => void
+  startRun: (sectorType: ActiveRun['sector'], loadoutType: LoadoutType, kitId?: string, modifiers?: RunModifier[]) => void
   updateResources: (resources: Partial<Record<ResourceType, number>>) => void
   addToInventory: (equipment: Equipment) => void
   removeFromInventory: (equipmentId: string) => void
@@ -47,6 +58,7 @@ export interface GameStore extends GameState {
   checkAchievements: () => void
   incrementBossesKilled: () => void
   incrementEnemiesKilled: (count: number) => void
+  incrementDailyChallengesCompleted: () => void
 }
 
 const initialState: GameState = {
@@ -71,6 +83,7 @@ const initialState: GameState = {
   unlockedAchievements: [],
   bossesKilled: 0,
   totalEnemiesKilled: 0,
+  dailyChallengesCompleted: 0,
 }
 
 export const useGameStore = create<GameStore>()(
@@ -80,7 +93,7 @@ export const useGameStore = create<GameStore>()(
 
       setCurrentScreen: (screen) => set({ currentScreen: screen }),
 
-      startRun: (sectorType, loadoutType, kitId) => {
+      startRun: (sectorType, loadoutType, kitId, modifiers = []) => {
         const sector = generateSector(sectorType)
         const state = get()
         
@@ -93,14 +106,19 @@ export const useGameStore = create<GameStore>()(
           equipment = { ...state.runner.equipment }
           customGearAtRisk = Object.values(state.runner.equipment).filter((e): e is Equipment => e !== undefined)
         }
+
+        // Apply time_pressure modifier: halve the extraction timer
+        const extractionTimer = modifiers.includes('time_pressure')
+          ? Math.floor(sector.maxExtractionTime / 2)
+          : sector.maxExtractionTime
         
         const activeRun: ActiveRun = {
           sector: sectorType,
           rooms: sector.rooms,
           currentRoom: 0,
           roomProgress: 0,
-          extractionTimer: sector.maxExtractionTime,
-          maxExtractionTime: sector.maxExtractionTime,
+          extractionTimer,
+          maxExtractionTime: extractionTimer,
           startTime: Date.now(),
           enemiesDefeated: 0,
           resourcesCollected: {},
@@ -109,6 +127,7 @@ export const useGameStore = create<GameStore>()(
           loadoutType,
           kitId: kitId || null,
           customGearAtRisk,
+          modifiers,
         }
         
         set((s) => ({
@@ -343,6 +362,36 @@ export const useGameStore = create<GameStore>()(
           get().addLog('success', lootMsg)
           notify.success('Extraction Complete', `${run.currentRoom} rooms cleared.`)
           get().checkAchievements()
+
+          // Check daily challenges
+          void getChallengeStore().then((cs) => {
+            const bossDefeated = get().bossesKilled > state.bossesKilled
+            const runResult = {
+              success: true,
+              sector: run.sector,
+              enemiesDefeated: run.enemiesDefeated,
+              resourcesCollected: Object.fromEntries(
+                Object.entries(run.resourcesCollected).map(([k, v]) => [k, v ?? 0])
+              ) as Record<string, number>,
+              roomsCleared: run.currentRoom,
+              modifiers: run.modifiers,
+              bossDefeated,
+            }
+            const pending = cs.challenges.filter((c) => !c.completed)
+            pending.forEach((challenge) => {
+              cs.submitChallengeCompletion(challenge.id, runResult)
+                .then((result) => {
+                  if (result.ok) {
+                    get().incrementDailyChallengesCompleted()
+                    notify.achievement('Challenge Complete!', challenge.title)
+                    if (result.reward) {
+                      get().updateResources(result.reward)
+                    }
+                  }
+                })
+                .catch(() => {/* silently ignore network errors */})
+            })
+          })
         } else {
           const lostGearIds = run.customGearAtRisk.map(e => e.id)
           const newInventory = state.inventory.filter(
@@ -411,6 +460,11 @@ export const useGameStore = create<GameStore>()(
         // Achievement check handled by completeRun to avoid per-tick overhead
       },
 
+      incrementDailyChallengesCompleted: () => {
+        set((s) => ({ dailyChallengesCompleted: s.dailyChallengesCompleted + 1 }))
+        get().checkAchievements()
+      },
+
       prestigeGame: () => {
         const state = get()
         const PRESTIGE_MIN_LEVEL = 50
@@ -444,7 +498,7 @@ export const useGameStore = create<GameStore>()(
     }),
     {
       name: 'marathon-idle-save',
-      version: 6,
+      version: 7,
       migrate(persistedState: unknown, version: number) {
         const state = persistedState as GameState & { runner?: { activeEffects?: unknown[] } }
         if (version < 3 && state.runner) {
@@ -458,6 +512,9 @@ export const useGameStore = create<GameStore>()(
           (state as GameState).unlockedAchievements = (state as GameState).unlockedAchievements ?? []
           ;(state as GameState).bossesKilled        = (state as GameState).bossesKilled        ?? 0
           ;(state as GameState).totalEnemiesKilled  = (state as GameState).totalEnemiesKilled  ?? 0
+        }
+        if (version < 7) {
+          ;(state as GameState).dailyChallengesCompleted = (state as GameState).dailyChallengesCompleted ?? 0
         }
         return state as unknown as GameStore
       },

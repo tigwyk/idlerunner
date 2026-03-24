@@ -13,8 +13,17 @@ import { generateLoot } from '@/game/loot/LootGenerator'
 import { GAME_CONFIG } from '@/game/config'
 import { ALL_SLOTS, SLOT_INFO } from '@/types'
 import type { StatusEffectType, EnemyType, SectorType } from '@/types'
+import { notify } from '@/store/notificationStore'
+import { useSettingsStore } from '@/store/settingsStore'
 
-// Maps enemy type to the status effect it can inflict on hit
+function notifyLoot(name: string, rarity: string) {
+  if (!useSettingsStore.getState().showLootNotifications) return
+  const rare = ['uncommon', 'rare', 'epic', 'legendary']
+  if (rare.includes(rarity)) {
+    notify.info(`Found: ${name}`, rarity.charAt(0).toUpperCase() + rarity.slice(1))
+  }
+}
+
 const ENEMY_STATUS_EFFECT: Record<EnemyType, StatusEffectType | null> = {
   scavenger: 'burning',
   drone: 'emp',
@@ -112,6 +121,7 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
       if (equipment) {
         equipmentUpdate.equipmentCollected = [...activeRun.equipmentCollected, equipment]
         store.addLog('loot', `Found ${equipment.name}!`)
+        notifyLoot(equipment.name, equipment.rarity)
       }
     }
     
@@ -147,7 +157,8 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
   }
 
   if (enemy.health > 0 && Math.random() * 100 > evasion) {
-    const enemyDamage = Math.max(1, enemy.damage - armor * 0.3)
+    const fragileMultiplier = activeRun.modifiers.includes('fragile') ? 1.5 : 1
+    const enemyDamage = Math.max(1, (enemy.damage - armor * 0.3) * fragileMultiplier)
     const newHealth = runner.health - enemyDamage
     
     if (newHealth <= 0) {
@@ -187,10 +198,12 @@ function processCombatRoom(store: GameStore, room: import('@/types').Room): void
     if (randomDrop) {
       newEquipment.push(randomDrop)
       store.addLog('loot', `Found ${randomDrop.name}!`)
+      notifyLoot(randomDrop.name, randomDrop.rarity)
     }
     if (bossDrop) {
       newEquipment.push(bossDrop)
       store.addLog('loot', `[BOSS DROP] ${bossDrop.name}!`)
+      notifyLoot(bossDrop.name, bossDrop.rarity)
     }
     if (newEquipment.length > activeRun.equipmentCollected.length) {
       equipmentUpdate.equipmentCollected = newEquipment
@@ -216,10 +229,11 @@ function processResourceRoom(store: GameStore, room: import('@/types').Room): vo
   const scavengingBonus = getSkillBonus(runner.skills.scavenging)
   const scavMasteryBonus = getMasteryBonus(runner.skills.scavenging)
   const prestigeResourceMult = 1 + store.prestigeLevel * 0.10
+  const bonusLootMult = activeRun.modifiers.includes('bonus_loot') ? 1.5 : 1
   const collected: Partial<Record<string, number>> = {}
   
   for (const [resource, amount] of Object.entries(room.resources)) {
-    const bonus = Math.floor((amount as number) * scavengingBonus * scavMasteryBonus * prestigeResourceMult)
+    const bonus = Math.floor((amount as number) * scavengingBonus * scavMasteryBonus * prestigeResourceMult * bonusLootMult)
     collected[resource] = bonus
   }
 
@@ -263,6 +277,7 @@ function processLootRoom(store: GameStore, room: import('@/types').Room): void {
         equipmentCollected: [...activeRun.equipmentCollected, equipment],
       })
       store.addLog('loot', `Found ${equipment.name}!`)
+      notifyLoot(equipment.name, equipment.rarity)
     }
   }
 

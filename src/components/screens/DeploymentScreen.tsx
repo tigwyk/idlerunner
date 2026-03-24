@@ -2,23 +2,34 @@ import { useState, useEffect, useRef } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { useAuthStore } from '@/store/authStore'
 import { useMultiplayerStore } from '@/store/multiplayerStore'
+import { useChallengeStore } from '@/store/challengeStore'
 import { SECTOR_NAMES, SECTOR_DESCRIPTIONS } from '@/game/config'
 import { getSectorConfig } from '@/game/sectors/SectorGenerator'
 import { STARTER_KITS, getKitById } from '@/game/data/kits'
-import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type SlotCategory } from '@/types'
+import { ALL_SLOTS, SLOT_INFO, SLOTS_BY_CATEGORY, type AllEquipmentSlot, type SlotCategory, type RunModifier } from '@/types'
 
 export default function DeploymentScreen() {
   const { runner, activeRun, startRun } = useGameStore()
   const { status: authStatus, profile } = useAuthStore()
   const { queueState, message: mpMessage, status, multiplayerMode, joinQueue, leaveQueue, startMultiplayerRun, setMultiplayerMode } = useMultiplayerStore()
+  const { challenges, loading: challengesLoading, loadDailyChallenges } = useChallengeStore()
   const [showKits, setShowKits] = useState(false)
   const [selectedKitId, setSelectedKitId] = useState<string>(STARTER_KITS[0].id)
+  const [challengeModifiers, setChallengeModifiers] = useState<RunModifier[]>([])
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null)
 
   const isAuthenticated = authStatus === 'authenticated'
   const isQueued = queueState?.status === 'queued'
   const isMatched = queueState?.status === 'matched'
 
   const startedSessionRef = useRef<string | null>(null)
+
+  // Load daily challenges when authenticated
+  useEffect(() => {
+    if (isAuthenticated && challenges.length === 0) {
+      loadDailyChallenges().catch(console.error)
+    }
+  }, [isAuthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // When matched, auto-start the run and join the session
   useEffect(() => {
@@ -33,9 +44,9 @@ export default function DeploymentScreen() {
     const userId = profile.id
 
     if (showKits) {
-      startRun(sector, 'kit', selectedKitId)
+      startRun(sector, 'kit', selectedKitId, challengeModifiers)
     } else {
-      startRun(sector, 'custom')
+      startRun(sector, 'custom', undefined, challengeModifiers)
     }
 
     startMultiplayerRun(sessionId, userId).catch(console.error)
@@ -60,9 +71,9 @@ export default function DeploymentScreen() {
       return
     }
     if (showKits) {
-      startRun(sector, 'kit', selectedKitId)
+      startRun(sector, 'kit', selectedKitId, challengeModifiers)
     } else {
-      startRun(sector, 'custom')
+      startRun(sector, 'custom', undefined, challengeModifiers)
     }
   }
 
@@ -232,6 +243,80 @@ export default function DeploymentScreen() {
         </div>
 
         <div className="space-y-4">
+          {/* Daily Challenges panel */}
+          {isAuthenticated && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="section-title">Daily Challenges</h3>
+                <button
+                  onClick={() => loadDailyChallenges().catch(console.error)}
+                  disabled={challengesLoading}
+                  className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  {challengesLoading ? '...' : '↺'}
+                </button>
+              </div>
+              {challengesLoading && <p className="text-xs text-text-muted">Loading challenges...</p>}
+              {!challengesLoading && challenges.length === 0 && (
+                <p className="text-xs text-text-muted">No challenges available.</p>
+              )}
+              {challenges.map((challenge) => (
+                <div
+                  key={challenge.id}
+                  onClick={() => {
+                    if (challenge.completed) return
+                    if (selectedChallengeId === challenge.id) {
+                      setSelectedChallengeId(null)
+                      setChallengeModifiers([])
+                    } else {
+                      setSelectedChallengeId(challenge.id)
+                      setChallengeModifiers(challenge.requiredModifiers as RunModifier[])
+                    }
+                  }}
+                  className={`p-3 rounded border mb-2 cursor-pointer transition-colors ${
+                    challenge.completed
+                      ? 'border-accent-lime/30 bg-accent-lime/5 opacity-60 cursor-default'
+                      : selectedChallengeId === challenge.id
+                        ? 'border-accent-yellow bg-accent-yellow/10'
+                        : 'border-white/10 hover:border-white/30 bg-surface-dark'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        {challenge.completed && <span className="text-accent-lime text-xs">✓</span>}
+                        <span className={`text-sm ${challenge.completed ? 'text-text-muted line-through' : 'text-text-primary'}`}>
+                          {challenge.title}
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5">{challenge.description}</p>
+                      {challenge.requiredModifiers.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {challenge.requiredModifiers.map((mod) => (
+                            <span key={mod} className="text-[10px] bg-accent-yellow/20 text-accent-yellow px-1.5 py-0.5 rounded">
+                              {mod.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right text-[10px] text-text-muted whitespace-nowrap">
+                      <div className="text-accent-lime">+{challenge.reward.credits}₵</div>
+                      {challenge.reward.metals > 0 && <div>+{challenge.reward.metals} metals</div>}
+                      {challenge.reward.electronics > 0 && <div>+{challenge.reward.electronics} elec</div>}
+                      {challenge.reward.data > 0 && <div>+{challenge.reward.data} data</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {selectedChallengeId && (
+                <p className="text-xs text-accent-yellow mt-1">
+                  Challenge run active — deploy below. Required modifiers will be applied automatically.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Multiplayer mode toggle */}
           <div className="card">
             <div className="flex items-center justify-between">

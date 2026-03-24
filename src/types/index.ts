@@ -26,7 +26,7 @@ export type SlotCategory = 'weapons' | 'defense' | 'core' | 'implants';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type RunnerStatus = 'idle' | 'deploying' | 'active' | 'extracting' | 'returning';
-export type GameScreen = 'overview' | 'deployment' | 'runner' | 'inventory' | 'skills' | 'log' | 'multiplayer' | 'vendor';
+export type GameScreen = 'overview' | 'deployment' | 'runner' | 'inventory' | 'skills' | 'log' | 'multiplayer' | 'vendor' | 'settings';
 export type LoadoutType = 'kit' | 'custom';
 
 export interface Kit {
@@ -180,6 +180,14 @@ export interface ExtractionResult {
   timeElapsed: number;
 }
 
+export type RunModifier =
+  | 'double_enemies'   // Extra combat rooms added to sector
+  | 'elite_only'       // All enemies get ×1.5 HP and damage
+  | 'no_healing'       // healRunner calls are suppressed
+  | 'fragile'          // Runner takes +50% incoming damage
+  | 'bonus_loot'       // Resource drops +50%
+  | 'time_pressure'    // Extraction timer halved
+
 export interface ActiveRun {
   sector: SectorType;
   rooms: Room[];
@@ -195,6 +203,7 @@ export interface ActiveRun {
   loadoutType: LoadoutType;
   kitId: string | null;
   customGearAtRisk: Equipment[];
+  modifiers: RunModifier[];
 }
 
 export interface GameState {
@@ -214,6 +223,7 @@ export interface GameState {
   unlockedAchievements: string[];
   bossesKilled: number;
   totalEnemiesKilled: number;
+  dailyChallengesCompleted: number;
 }
 
 export interface LogEntry {

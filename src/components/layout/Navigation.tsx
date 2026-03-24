@@ -10,6 +10,7 @@ const NAV_ITEMS: { id: GameScreen; label: string }[] = [
   { id: 'vendor', label: 'Vendor' },
   { id: 'log', label: 'Log' },
   { id: 'multiplayer', label: 'Multiplayer' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 export default function Navigation() {

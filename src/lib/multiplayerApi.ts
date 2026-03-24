@@ -199,3 +199,67 @@ export function acceptFriend(friendshipId: string): Promise<FriendResponse> {
 export function removeFriend(friendId: string): Promise<FriendResponse> {
   return sendJson(`/api/friends/${friendId}`, { method: 'DELETE' }, friendResponseSchema)
 }
+
+// ---------------------------------------------------------------------------
+// Challenges
+// ---------------------------------------------------------------------------
+
+const dailyChallengeSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  title: z.string(),
+  description: z.string(),
+  target: z.number(),
+  reward: z.object({
+    credits: z.number(),
+    metals: z.number(),
+    electronics: z.number(),
+    data: z.number(),
+  }),
+  requiredModifiers: z.array(z.string()),
+  completed: z.boolean(),
+})
+const dailyChallengesResponseSchema = z.object({
+  dayNumber: z.number(),
+  challenges: z.array(dailyChallengeSchema),
+})
+const challengeCompleteResponseSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  reward: z.object({
+    credits: z.number(),
+    metals: z.number(),
+    electronics: z.number(),
+    data: z.number(),
+  }).optional(),
+})
+
+export type DailyChallenge = z.infer<typeof dailyChallengeSchema>
+export type DailyChallengesResponse = z.infer<typeof dailyChallengesResponseSchema>
+export type ChallengeCompleteResponse = z.infer<typeof challengeCompleteResponseSchema>
+
+export function getDailyChallenges(): Promise<DailyChallengesResponse> {
+  return getJson('/api/challenges/daily', dailyChallengesResponseSchema)
+}
+
+export interface CompleteRunResult {
+  success: boolean
+  sector: string
+  enemiesDefeated: number
+  resourcesCollected: Record<string, number>
+  roomsCleared: number
+  modifiers: string[]
+  bossDefeated?: boolean
+}
+
+export function completeChallenge(
+  challengeId: string,
+  runResult: CompleteRunResult
+): Promise<ChallengeCompleteResponse> {
+  return sendJson(
+    '/api/challenges/complete',
+    { method: 'POST', body: JSON.stringify({ challengeId, runResult }) },
+    challengeCompleteResponseSchema
+  )
+}
+
