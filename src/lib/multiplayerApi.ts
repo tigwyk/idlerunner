@@ -51,10 +51,11 @@ async function sendJson<T>(
   init: RequestInit,
   parser: { parse: (value: unknown) => T }
 ): Promise<T> {
+  const hasBody = init.body != null
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       ...(await buildHeaders()),
-      'Content-Type': 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     },
     ...init,
   })
