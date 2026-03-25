@@ -42,6 +42,7 @@ async function getJson<T>(path: string, parser: { parse: (value: unknown) => T }
     headers: await buildHeaders(),
   })
   const data = await response.json()
+  if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`)
   return parser.parse(data)
 }
 
@@ -59,6 +60,7 @@ async function sendJson<T>(
   })
 
   const data = await response.json()
+  if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`)
   return parser.parse(data)
 }
 
