@@ -136,6 +136,7 @@ const SECTOR_CONFIG: Record<SectorType, {
   maxExtractionTime: number
   nodeDistribution: Record<NodeType, number>
   bossHealth: number
+  bossChance: number
 }> = {
   residential: {
     name: 'Residential Deck',
@@ -144,6 +145,7 @@ const SECTOR_CONFIG: Record<SectorType, {
     roomCount: 5,
     maxExtractionTime: 120,
     bossHealth: 120,
+    bossChance: 0.33,
     nodeDistribution: {
       resource: 30,
       combat: 25,
@@ -159,6 +161,7 @@ const SECTOR_CONFIG: Record<SectorType, {
     roomCount: 7,
     maxExtractionTime: 180,
     bossHealth: 180,
+    bossChance: 0.66,
     nodeDistribution: {
       resource: 20,
       combat: 30,
@@ -174,6 +177,7 @@ const SECTOR_CONFIG: Record<SectorType, {
     roomCount: 8,
     maxExtractionTime: 240,
     bossHealth: 150,
+    bossChance: 1.0,
     nodeDistribution: {
       resource: 15,
       combat: 25,
@@ -265,8 +269,9 @@ export function generateSector(sectorType: SectorType): Sector {
   const rooms: Room[] = []
   let extractionRoom = -1
   
-  // Guarantee one boss room — place it second-to-last before extraction
+  // Boss spawns second-to-last room before extraction, scaled by sector difficulty
   const bossRoomIndex = config.roomCount - 2
+  const hasBoss = Math.random() < config.bossChance
 
   for (let i = 0; i < config.roomCount; i++) {
     let nodeType: NodeType
@@ -276,7 +281,7 @@ export function generateSector(sectorType: SectorType): Sector {
     } else if (i === config.roomCount - 1) {
       nodeType = 'extraction'
       extractionRoom = i
-    } else if (i === bossRoomIndex) {
+    } else if (i === bossRoomIndex && hasBoss) {
       nodeType = 'combat'
     } else {
       nodeType = getRandomNodeType(config.nodeDistribution)
@@ -295,7 +300,7 @@ export function generateSector(sectorType: SectorType): Sector {
     }
     
     if (nodeType === 'combat') {
-      const isBoss = i === bossRoomIndex
+      const isBoss = i === bossRoomIndex && hasBoss
       room.enemy = generateEnemy(sectorType, config.difficulty, isBoss)
       if (isBoss) {
         room.name = `[BOSS] ${room.enemy?.name ?? 'Boss Encounter'}`
